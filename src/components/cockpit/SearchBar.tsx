@@ -77,7 +77,8 @@ export function SearchBar() {
   const visible = term ? results : [];
 
   return (
-    <div ref={wrapRef} className="relative w-[440px]">
+    // 모바일: 헤더 아랫줄 전체 폭 / 태블릿 이상: 남는 공간을 채우되 최대 440px
+    <div ref={wrapRef} className="relative order-last w-full min-w-0 basis-full md:order-none md:max-w-[440px] md:flex-1 md:basis-auto">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-2" />
       <input
         id={SEARCH_INPUT_ID}
@@ -152,13 +153,15 @@ export function SearchBar() {
                     <CategoryBadge category={t.category} />
                     <span className="truncate">{t.title}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-ink-2">
-                    {formatLong(t.date)}
-                    {t.start_time && ` · ${shortTime(t.start_time)}`}
-                    {t.repeat !== "none" && <Repeat className="size-3" />}
+                  <div className="flex min-w-0 items-center gap-2 text-xs text-ink-2">
+                    <span className="truncate">
+                      {formatLong(t.date)}
+                      {t.start_time && ` · ${shortTime(t.start_time)}`}
+                    </span>
+                    {t.repeat !== "none" && <Repeat className="size-3 shrink-0" />}
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="hidden shrink-0 gap-1 sm:flex">
                   {t.tags.slice(0, 2).map((tag) => (
                     <TagChip key={tag} tag={tag} />
                   ))}

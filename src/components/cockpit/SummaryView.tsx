@@ -230,12 +230,12 @@ export function SummaryView() {
   }
 
   return (
-    <GlassPanel data-print-root className="flex min-h-0 flex-1 flex-col overflow-hidden print:block print:overflow-visible print:rounded-none print:border-0">
-      <div className="flex flex-wrap items-center gap-3 border-b border-black/5 px-6 py-3.5 print:hidden">
-        <div className="flex items-center gap-2">
-          <ListTree className="size-5 text-apple-blue" />
-          <h2 className="text-[19px] font-semibold tracking-[-0.01em]">요약</h2>
-          <span className="rounded-md bg-black/5 px-2 py-0.5 text-xs font-semibold tabular-nums text-ink-2">
+    <GlassPanel data-print-root className="flex h-[calc(100dvh-140px)] min-h-[520px] min-w-0 flex-col overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1 print:block print:overflow-visible print:rounded-none print:border-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/5 px-4 py-3 sm:px-6 sm:py-3.5 print:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <ListTree className="size-5 shrink-0 text-apple-blue" />
+          <h2 className="shrink-0 text-[17px] font-semibold tracking-[-0.01em] sm:text-[19px]">요약</h2>
+          <span className="min-w-0 truncate rounded-md bg-black/5 px-2 py-0.5 text-xs font-semibold tabular-nums text-ink-2">
             {loading && !data ? (
               <Loader2 className="inline size-3 animate-spin" />
             ) : (
@@ -245,7 +245,7 @@ export function SummaryView() {
           {loading && data && <Loader2 className="size-4 animate-spin text-ink-2" />}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
           <DateRangeBar range={range} onChange={setRange} />
           <GlassButton onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))} className="text-xs" title="정렬 순서 전환">
             {sort === "desc" ? <ArrowDownWideNarrow className="size-4" /> : <ArrowUpNarrowWide className="size-4" />}
@@ -258,7 +258,7 @@ export function SummaryView() {
           <PrintButton fileName={`요약_${range.start}_${range.end}`} disabled={!days.length} />
           <GlassButton onClick={closeView} className="text-xs" title="요약 닫기 (Esc)">
             <X className="size-4" />
-            닫기 <Kbd>Esc</Kbd>
+            <span className="whitespace-nowrap">닫기</span> <Kbd className="hidden sm:inline-flex">Esc</Kbd>
           </GlassButton>
         </div>
       </div>

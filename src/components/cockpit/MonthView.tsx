@@ -44,12 +44,12 @@ export function MonthView() {
   };
 
   return (
-    <GlassPanel className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-black/5 px-6 py-3.5">
-        <h2 className="text-[19px] font-semibold tracking-[-0.01em]">
+    <GlassPanel className="flex h-[560px] min-h-0 min-w-0 flex-col overflow-hidden sm:h-[640px] lg:h-auto lg:flex-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-black/5 px-4 py-3 sm:px-6 sm:py-3.5">
+        <h2 className="shrink-0 whitespace-nowrap text-[17px] font-semibold tracking-[-0.01em] sm:text-[19px]">
           {cur.getFullYear()}년 {month + 1}월
         </h2>
-        <div className="flex">
+        <div className="flex shrink-0">
           <GlassButton className="px-1.5" onClick={() => shiftMonth(-1)} aria-label="이전 달">
             <ChevronLeft className="size-4" />
           </GlassButton>
@@ -57,22 +57,24 @@ export function MonthView() {
             <ChevronRight className="size-4" />
           </GlassButton>
         </div>
-        <GlassButton className="text-xs" onClick={() => setSelectedDate(today)}>
+        <GlassButton className="shrink-0 whitespace-nowrap text-xs" onClick={() => setSelectedDate(today)}>
           오늘
         </GlassButton>
-        {loading && <Loader2 className="size-4 animate-spin text-ink-2" />}
-        <span className="ml-auto text-xs text-ink-2">클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기</span>
+        {loading && <Loader2 className="size-4 shrink-0 animate-spin text-ink-2" />}
+        <span className="ml-auto hidden min-w-0 truncate text-xs text-ink-2 md:block" title="클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기">
+          클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기
+        </span>
       </div>
 
-      <div className="grid grid-cols-7 border-b border-black/5 px-3 pt-2">
+      <div className="grid grid-cols-7 border-b border-black/5 px-1.5 pt-2 sm:px-3">
         {WEEKDAY_KO.map((w, i) => (
-          <div key={w} className={cn("px-2 pb-1.5 text-xs font-medium", i >= 5 ? "text-[#ff3b30]/80" : "text-ink-2")}>
+          <div key={w} className={cn("px-1 pb-1.5 text-center text-xs font-medium sm:px-2 sm:text-left", i >= 5 ? "text-[#ff3b30]/80" : "text-ink-2")}>
             {w}
           </div>
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1.5 p-3">
+      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1 p-1.5 sm:gap-1.5 sm:p-3">
         {days.map((iso, i) => {
           const items = todos
             .filter((t) => occursOn(t, iso))
@@ -111,31 +113,40 @@ export function MonthView() {
                 dropToDate(e, iso);
               }}
               className={cn(
-                "flex min-h-0 cursor-pointer flex-col overflow-hidden rounded-lg border p-1.5 outline-none transition-[background-color,border-color,box-shadow]",
+                "flex min-h-0 min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border p-1 outline-none transition-[background-color,border-color,box-shadow] sm:p-1.5",
                 "focus-visible:ring-2 focus-visible:ring-apple-blue/40",
                 selected ? "border-apple-blue/50 bg-apple-blue/[0.07]" : "border-white/50 bg-white/40 hover:bg-white/70",
                 !inMonth && "opacity-45",
                 dragOver === iso && "ring-2 ring-apple-mint",
               )}
             >
-              <div className="mb-1 flex items-center gap-1 px-0.5">
+              <div className="mb-1 flex min-w-0 flex-wrap items-center gap-1 px-0.5 max-sm:justify-center">
                 <span
                   className={cn(
-                    "flex size-6 items-center justify-center rounded-md text-[13px] font-semibold tabular-nums",
+                    "flex size-6 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold tabular-nums",
                     iso === today ? "bg-apple-blue text-white" : i % 7 >= 5 ? "text-[#ff3b30]/80" : "text-ink",
                   )}
                 >
                   {parseISODate(iso).getDate()}
                 </span>
                 {due > 0 && (
-                  <span className="flex items-center gap-0.5 rounded-md bg-[#ff3b30] px-1 text-[10px] font-bold text-white">
+                  <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#ff3b30] px-1 text-[10px] font-bold text-white">
                     <Flag className="size-2.5" />
                     {due}
                   </span>
                 )}
-                {items.length > 0 && <span className="ml-auto text-[10px] tabular-nums text-ink-2">{items.length}</span>}
+                {items.length > 0 && <span className="ml-auto hidden text-[10px] tabular-nums text-ink-2 sm:inline">{items.length}</span>}
               </div>
-              <ul className="min-h-0 space-y-0.5">
+              {/* 모바일: 칸이 좁아 제목 대신 분류 색상 점으로 개수 표시 */}
+              {items.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-0.5 sm:hidden" aria-label={`할 일 ${items.length}건`}>
+                  {items.slice(0, MAX_ITEMS).map((t) => (
+                    <span key={t.id} className={cn("size-1.5 rounded-full", CATEGORY_STYLE[t.category].dot, isDoneOn(t, iso) && "opacity-40")} />
+                  ))}
+                  {items.length > MAX_ITEMS && <span className="text-[9px] leading-none text-ink-2">+{items.length - MAX_ITEMS}</span>}
+                </div>
+              )}
+              <ul className="hidden min-h-0 min-w-0 space-y-0.5 sm:block">
                 {items.slice(0, MAX_ITEMS).map((t) => (
                   <li
                     key={t.id}
@@ -146,14 +157,15 @@ export function MonthView() {
                       setSelectedDate(iso);
                       selectTodo(t.id);
                     }}
-                    className="flex items-center gap-1 truncate rounded-md px-1 py-px text-[11px] hover:bg-white/80"
+                    title={t.title}
+                    className="flex min-w-0 items-center gap-1 truncate rounded-md px-1 py-px text-[11px] hover:bg-white/80"
                   >
                     <span className={cn("size-1.5 shrink-0 rounded-full", CATEGORY_STYLE[t.category].dot)} />
                     {t.start_time && <span className="shrink-0 font-semibold tabular-nums">{shortTime(t.start_time)}</span>}
                     <span className={cn("truncate", isDoneOn(t, iso) && "text-ink-2 line-through")}>{t.title}</span>
                   </li>
                 ))}
-                {items.length > MAX_ITEMS && <li className="px-1 text-[10px] text-ink-2">+{items.length - MAX_ITEMS}건 더보기</li>}
+                {items.length > MAX_ITEMS && <li className="truncate px-1 text-[10px] text-ink-2">+{items.length - MAX_ITEMS}건 더보기</li>}
               </ul>
             </div>
           );

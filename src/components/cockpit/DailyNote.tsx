@@ -132,16 +132,16 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   const tasksDone = tasks.filter((t) => t !== "[ ]").length;
 
   return (
-    <GlassPanel className={cn("flex min-h-0 flex-col overflow-hidden print:hidden", className)}>
-      <div className="flex items-center gap-3 border-b border-black/5 px-5 py-4">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-apple-mint/15">
+    <GlassPanel className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden print:hidden", className)}>
+      <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-apple-mint/15">
           <NotebookPen className="size-[18px] text-[#00a29b]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-semibold">Daily Memopad</h2>
+          <h2 className="truncate text-[15px] font-semibold">Daily Memopad</h2>
           <p className="truncate text-xs text-ink-2">{formatLong(date)}</p>
         </div>
-        <div className="flex rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">
+        <div className="flex shrink-0 rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">
           {(
             [
               ["write", PencilLine, "작성"],
@@ -153,6 +153,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
               key={m}
               role="tab"
               aria-selected={mode === m}
+              aria-label={label}
               title={label}
               onClick={() => setMode(m)}
               className={cn(
@@ -179,7 +180,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
               disabled={!loaded}
               spellCheck={false}
               placeholder={loaded ? "오늘의 기록을 마크다운으로 남겨보세요…" : "불러오는 중…"}
-              className="h-full w-full resize-none bg-transparent px-5 py-4 font-sans text-[14px] leading-[1.7] outline-none placeholder:text-ink-2/70 scroll-thin"
+              className="h-full w-full resize-none break-keep bg-transparent px-4 py-4 font-sans text-[14px] leading-[1.7] outline-none placeholder:text-ink-2/70 sm:px-5 scroll-thin"
             />
             {loaded && !content && (
               <button
@@ -195,7 +196,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
           </div>
         )}
         {mode !== "write" && (
-          <div className={cn("min-h-0 overflow-y-auto px-5 py-3 scroll-thin", mode === "split" && "border-t border-black/5 bg-white/30")}>
+          <div className={cn("min-h-0 min-w-0 overflow-y-auto break-keep px-4 py-3 sm:px-5 scroll-thin", mode === "split" && "border-t border-black/5 bg-white/30")}>
             {content.trim() ? (
               <Markdown source={content} onToggleTask={toggleTask} />
             ) : (
@@ -205,15 +206,15 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         )}
       </div>
 
-      <div className="flex items-center gap-3 border-t border-black/5 px-5 py-2.5 text-[11px] text-ink-2">
-        <span className="tabular-nums">{stats}단어</span>
+      <div className="flex items-center gap-3 whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-[11px] text-ink-2 sm:px-5">
+        <span className="shrink-0 tabular-nums">{stats}단어</span>
         {tasks.length > 0 && (
-          <span className="tabular-nums">
+          <span className="shrink-0 tabular-nums">
             체크 {tasksDone}/{tasks.length}
           </span>
         )}
-        <span className="flex items-center gap-1">
-          {status === "saving" && <Loader2 className="size-3 animate-spin" />}
+        <span className="flex min-w-0 items-center gap-1 truncate">
+          {status === "saving" && <Loader2 className="size-3 shrink-0 animate-spin" />}
           {status === "saving"
             ? "저장 중…"
             : status === "error"
@@ -222,7 +223,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
                 ? `저장됨 ${new Date(updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`
                 : ""}
         </span>
-        <span className="ml-auto flex items-center gap-1">
+        <span className="ml-auto hidden shrink-0 items-center gap-1 sm:flex">
           포커스
           {formatCombo(combo).map((k) => (
             <Kbd key={k}>{k}</Kbd>

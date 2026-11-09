@@ -108,11 +108,12 @@ export function TodoBoard() {
   const noFilter = activeTags.length === 0 && activeCategories.length === 0;
 
   return (
-    <GlassPanel className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    // 데스크톱: 남은 높이를 채움 / 태블릿: 고정 높이 / 모바일: 목록·타임블록을 상하로 쌓아 더 높게
+    <GlassPanel className="flex h-[960px] min-h-0 min-w-0 flex-col overflow-hidden md:h-[720px] lg:h-auto lg:flex-1">
       {/* 헤더 + 태그 필터 */}
-      <div className="flex items-center gap-4 border-b border-black/5 px-6 pb-3 pt-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/5 px-4 pb-3 pt-3.5 sm:px-6 sm:pt-4 xl:flex-nowrap">
         {view === "day" && (
-          <div className="flex">
+          <div className="flex shrink-0">
             <GlassButton className="px-1.5" onClick={() => setSelectedDate(addDays(selectedDate, -1))} aria-label="이전 날">
               <ChevronLeft className="size-4" />
             </GlassButton>
@@ -121,18 +122,19 @@ export function TodoBoard() {
             </GlassButton>
           </div>
         )}
-        <div>
-          <h2 className="text-[19px] font-semibold tracking-[-0.01em]">
+        <div className="min-w-0 flex-1 xl:flex-none">
+          <h2 className="truncate text-[17px] font-semibold tracking-[-0.01em] sm:text-[19px]">
             {formatLong(selectedDate)}
             {selectedDate === todayISO() && <span className="ml-2 text-sm font-medium text-apple-blue">오늘</span>}
           </h2>
-          <p className="text-xs text-ink-2">
+          <p className="truncate text-xs text-ink-2">
             {dayTodos.length}개 중 {doneCount}개 완료
             {loading && <Loader2 className="ml-1.5 inline size-3 animate-spin" />}
           </p>
         </div>
 
-        <div className="ml-auto flex max-w-[66%] items-center gap-1.5 overflow-x-auto scroll-thin">
+        {/* 소형 화면: 아랫줄 전체 폭 + 가로 스크롤 / 데스크톱: 우측 정렬 */}
+        <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto pb-0.5 scroll-thin xl:ml-auto xl:w-auto xl:max-w-[66%]">
           <Tags className="size-4 shrink-0 text-ink-2" />
           <button
             onClick={clearTags}
@@ -167,7 +169,8 @@ export function TodoBoard() {
 
       <AddTodoForm prefill={prefillStart} />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
+      {/* 모바일: 목록(상) · 타임블록(하) / 태블릿 이상: 좌우 */}
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1.2fr)] md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] md:grid-rows-1">
         <TodoList todos={visible} date={selectedDate} emptyFiltered={dayTodos.length > 0} />
         <TimeBlocks
           todos={visible}
@@ -292,9 +295,10 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
         e.preventDefault();
         void submit();
       }}
-      className="flex items-center gap-2 border-b border-black/5 px-6 py-3"
+      // xl 미만: 제목 입력이 윗줄 전체, 시간·태그·반복·추가는 아랫줄에서 줄바꿈
+      className="flex flex-wrap items-center gap-2 border-b border-black/5 px-4 py-3 sm:px-6 xl:flex-nowrap"
     >
-      <div className="relative min-w-0 flex-1">
+      <div className="relative min-w-0 flex-1 basis-full xl:basis-auto">
         <Plus className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-apple-blue" />
         <GlassInput
           id={NEW_TODO_INPUT_ID}
@@ -303,11 +307,11 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={onTitleKeyDown}
           placeholder="할 일 → Enter → 시간 → 1차 태그 → #2차 태그 → Enter"
-          className="w-full pl-9 pr-20"
+          className="w-full truncate pl-9 pr-3 sm:pr-20"
           maxLength={300}
           autoComplete="off"
         />
-        <span className="pointer-events-none absolute right-2.5 top-1/2 flex -translate-y-1/2 gap-0.5">
+        <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 gap-0.5 sm:flex">
           {formatCombo(combo).map((k) => (
             <Kbd key={k}>{k}</Kbd>
           ))}
@@ -361,7 +365,7 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
         draft={tagDraft}
         onDraftChange={setTagDraft}
         onSubmit={(tags) => void submit(tags)}
-        className="w-56 shrink-0"
+        className="min-w-[160px] flex-1 xl:w-56 xl:flex-none xl:shrink-0"
       />
       <select
         value={repeat}
@@ -375,7 +379,7 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
           </option>
         ))}
       </select>
-      <GlassButton type="submit" variant="primary" className="h-9 shrink-0 px-4" disabled={!title.trim() || saving}>
+      <GlassButton type="submit" variant="primary" className="h-9 shrink-0 whitespace-nowrap px-4" disabled={!title.trim() || saving}>
         {saving ? <Loader2 className="size-4 animate-spin" /> : "추가"}
       </GlassButton>
     </form>
@@ -406,16 +410,16 @@ export function TodoList({
 
   if (todos.length === 0) {
     return (
-      <div className={cn("flex flex-col items-center justify-center gap-1 px-4 text-center text-sm text-ink-2", !compact && "border-r border-black/5", className)}>
+      <div className={cn("flex min-w-0 flex-col items-center justify-center gap-1 break-keep px-4 py-6 text-center text-sm text-ink-2", !compact && "border-b border-black/5 md:border-b-0 md:border-r", className)}>
         <p className="font-medium text-ink">{emptyFiltered ? "필터에 맞는 할 일이 없어요" : "이 날은 비어 있어요"}</p>
-        <p>{emptyFiltered ? "태그 필터나 검색어를 확인하세요." : emptyHint}</p>
+        <p className="max-w-[320px]">{emptyFiltered ? "태그 필터나 검색어를 확인하세요." : emptyHint}</p>
       </div>
     );
   }
 
   return (
     <>
-    <ul className={cn("min-h-0 space-y-1.5 overflow-y-auto px-4 py-3 scroll-thin", compact ? "px-3" : "border-r border-black/5", className)}>
+    <ul className={cn("min-h-0 min-w-0 space-y-1.5 overflow-y-auto px-2 py-3 sm:px-4 scroll-thin", compact ? "px-2 sm:px-3" : "border-b border-black/5 md:border-b-0 md:border-r", className)}>
       {todos.map((t) => {
         const done = isDoneOn(t, date);
         const selected = t.id === selectedTodoId;
@@ -440,7 +444,7 @@ export function TodoList({
               }}
               title={compact ? "달력의 다른 날짜로 끌어다 놓을 수 있어요" : "타임블록이나 다른 날짜로 끌어다 놓을 수 있어요"}
               className={cn(
-                "group flex cursor-pointer items-center gap-2.5 rounded-xl border py-2.5 pl-1.5 pr-3 outline-none",
+                "group flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border py-2.5 pl-1 pr-2 outline-none sm:gap-2.5 sm:pl-1.5 sm:pr-3",
                 "transition-[background-color,border-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-apple-blue/40",
                 selected
                   ? "border-apple-blue/30 bg-apple-blue/[0.07] shadow-sm"
@@ -464,24 +468,27 @@ export function TodoList({
               </button>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
+                <div className="flex min-w-0 items-center gap-1.5">
                   <CategoryBadge category={t.category} />
-                  <span className={cn("truncate text-[14px] font-medium transition-colors", done && "text-ink-2 line-through")}>
+                  <span title={t.title} className={cn("min-w-0 truncate text-[14px] font-medium transition-colors", done && "text-ink-2 line-through")}>
                     {t.title}
                   </span>
                 </div>
-                <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-2">
+                <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-ink-2">
                   {t.start_time ? (
-                    <span className="flex items-center gap-1 font-medium tabular-nums text-ink">
-                      <Clock className="size-3" />
+                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-medium tabular-nums text-ink">
+                      <Clock className="size-3 shrink-0" />
                       {shortTime(t.start_time)}
                       {t.end_time && `–${shortTime(t.end_time)}`}
                     </span>
                   ) : (
-                    <span>{compact ? "시간 미지정" : "시간 미지정 · 타임블록으로 끌어다 놓기"}</span>
+                    <span className="min-w-0 truncate">
+                      시간 미지정
+                      {!compact && <span className="hidden xl:inline"> · 타임블록으로 끌어다 놓기</span>}
+                    </span>
                   )}
                   {t.repeat !== "none" && (
-                    <span className="flex items-center gap-0.5 rounded-md bg-apple-blue/10 px-1.5 py-px text-[10px] font-medium text-apple-blue">
+                    <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-md bg-apple-blue/10 px-1.5 py-px text-[10px] font-medium text-apple-blue">
                       <RepeatIcon className="size-2.5" />
                       {REPEAT_LABEL[t.repeat]}
                     </span>
@@ -489,9 +496,10 @@ export function TodoList({
                 </div>
               </div>
 
-              <div className="flex shrink-0 gap-1">
-                {t.tags.slice(0, compact ? 1 : 3).map((tag) => (
-                  <TagChip key={tag} tag={tag} />
+              {/* 태그: 모바일 숨김 · 좁은 폭에선 1개 · 넓은 화면에서 최대 3개 */}
+              <div className="hidden max-w-[40%] shrink-0 gap-1 overflow-hidden sm:flex">
+                {t.tags.slice(0, compact ? 1 : 3).map((tag, idx) => (
+                  <TagChip key={tag} tag={tag} className={cn("max-w-[120px] truncate", idx > 0 && "hidden 2xl:inline-flex")} />
                 ))}
               </div>
               <button
@@ -506,6 +514,8 @@ export function TodoList({
                 className={cn(
                   "-mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-2/60 outline-none",
                   "opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
+                  // 터치 기기(hover 없음)에서는 항상 노출
+                  "[@media(hover:none)]:opacity-100",
                   "hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#ff3b30]/40",
                   selected && "opacity-100",
                 )}

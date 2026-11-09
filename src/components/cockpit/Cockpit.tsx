@@ -184,11 +184,12 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   useDeselect();
 
   return (
-    <div className="flex h-screen min-h-[720px] min-w-[1280px] flex-col gap-5 p-5 print:block print:h-auto print:min-h-0 print:min-w-0 print:p-0">
+    // 데스크톱(lg+): 한 화면 고정 2열 / 태블릿·모바일: 상하 1열로 쌓고 페이지 스크롤
+    <div className="flex min-h-dvh flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5 print:block print:h-auto print:min-h-0 print:p-0">
       <Header user={user} />
 
-      <main className="grid min-h-0 flex-1 grid-cols-[7fr_3fr] gap-5 print:block">
-        <div className="flex min-h-0 flex-col gap-5 print:block">
+      <main className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-5 print:block">
+        <div className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:min-h-0 lg:gap-5 print:block">
           {view === "week" && <WeekBar />}
           {view === "search" ? (
             <SearchView />
@@ -201,7 +202,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
           )}
           <div
             className={`grid print:hidden transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-              selectedTodoId && !isFullView(view) ? "grid-rows-[1fr] opacity-100" : "-mt-5 grid-rows-[0fr] opacity-0"
+              selectedTodoId && !isFullView(view) ? "grid-rows-[1fr] opacity-100" : "-mt-3 grid-rows-[0fr] opacity-0 sm:-mt-4 lg:-mt-5"
             }`}
             aria-hidden={!selectedTodoId || isFullView(view)}
             data-keep-selection
@@ -214,12 +215,13 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 
         {view === "month" ? (
           // 월간 보기: 우측 = 선택 날짜의 과업 리스트(상단) + Daily Memopad(하단)
-          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
+          // 모바일: 상하 / 태블릿: 좌우 2열 / 데스크톱: 우측 열 안에서 상하
+          <div className="grid h-[900px] min-w-0 grid-rows-2 gap-3 sm:gap-4 md:h-[480px] md:grid-cols-2 md:grid-rows-1 lg:h-auto lg:min-h-0 lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5">
             <DayTaskPanel />
             <DailyNote userId={user.id} />
           </div>
         ) : (
-          <DailyNote userId={user.id} />
+          <DailyNote userId={user.id} className="h-[520px] min-w-0 lg:h-auto" />
         )}
       </main>
 
@@ -229,11 +231,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
       {error && (
         <div
           role="alert"
-          className="fixed bottom-6 left-1/2 z-50 print:hidden flex -translate-x-1/2 items-center gap-3 rounded-xl border border-white/40 bg-white/85 px-4 py-3 text-sm text-[#c4271d] shadow-xl backdrop-blur-xl"
+          className="fixed bottom-6 left-1/2 z-50 print:hidden flex w-max max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/40 bg-white/85 px-4 py-3 text-sm text-[#c4271d] shadow-xl backdrop-blur-xl"
         >
-          <CircleAlert className="size-4" />
-          {error}
-          <button onClick={clearError} className="rounded-md p-0.5 text-ink-2 hover:bg-black/5" aria-label="닫기">
+          <CircleAlert className="size-4 shrink-0" />
+          <span className="min-w-0 break-keep">{error}</span>
+          <button onClick={clearError} className="shrink-0 rounded-md p-0.5 text-ink-2 hover:bg-black/5" aria-label="닫기">
             <X className="size-4" />
           </button>
         </div>
@@ -244,14 +246,14 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 
 export function CockpitSkeleton() {
   return (
-    <div className="flex h-screen min-h-[720px] min-w-[1280px] flex-col gap-5 p-5">
+    <div className="flex min-h-dvh flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5">
       <GlassPanel className="h-16 animate-pulse rounded-2xl" />
-      <div className="grid min-h-0 flex-1 grid-cols-[7fr_3fr] gap-5">
-        <div className="flex flex-col gap-5">
-          <GlassPanel className="h-[170px] animate-pulse" />
-          <GlassPanel className="flex-1 animate-pulse" />
+      <div className="flex flex-col gap-3 sm:gap-4 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-5">
+        <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5">
+          <GlassPanel className="h-[120px] animate-pulse md:h-[170px]" />
+          <GlassPanel className="h-[560px] animate-pulse lg:h-auto lg:flex-1" />
         </div>
-        <GlassPanel className="animate-pulse" />
+        <GlassPanel className="h-[400px] animate-pulse lg:h-auto" />
       </div>
     </div>
   );

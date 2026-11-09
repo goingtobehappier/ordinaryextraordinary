@@ -235,10 +235,12 @@ export function TimeBlocks({
   const hours = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => DAY_START / 60 + i);
 
   return (
-    <div className="flex min-h-0 flex-col">
-      <div className="flex items-center justify-between px-5 pb-1 pt-3 text-xs text-ink-2">
-        <span className="font-medium">타임블록 · 목록에서 끌어다 놓기</span>
-        <span className="tabular-nums">
+    <div className="flex min-h-0 min-w-0 flex-col">
+      <div className="flex items-center justify-between gap-2 px-4 pb-1 pt-3 text-xs text-ink-2 sm:px-5">
+        <span className="min-w-0 truncate font-medium">
+          타임블록<span className="hidden lg:inline"> · 목록에서 끌어다 놓기</span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap tabular-nums">
           배분 {Math.floor(totalMinutes / 60)}시간 {totalMinutes % 60}분
         </span>
       </div>
@@ -272,7 +274,7 @@ export function TimeBlocks({
           <div className="pointer-events-none absolute bottom-0 left-12 right-1 top-0">
             {/* 점심시간 (매일 기본 블록) */}
             <div
-              className="absolute inset-x-0 flex items-start gap-1.5 rounded-lg border border-dashed border-[#ff9500]/40 px-2.5 py-1.5 text-[11px] font-medium text-[#b86b00]"
+              className="absolute inset-x-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed border-[#ff9500]/40 px-2.5 py-1.5 text-[11px] font-medium text-[#b86b00]"
               style={{
                 top: minToPx(LUNCH.start),
                 height: minToPx(LUNCH.end) - minToPx(LUNCH.start),
@@ -280,9 +282,9 @@ export function TimeBlocks({
                   "repeating-linear-gradient(135deg, rgb(255 149 0 / 0.08) 0 8px, rgb(255 149 0 / 0.03) 8px 16px)",
               }}
             >
-              <Utensils className="mt-px size-3" />
-              {LUNCH.label}
-              <span className="tabular-nums opacity-70">
+              <Utensils className="mt-px size-3 shrink-0" />
+              <span className="shrink-0">{LUNCH.label}</span>
+              <span className="truncate tabular-nums opacity-70">
                 {minutesToTime(LUNCH.start)}–{minutesToTime(LUNCH.end)}
               </span>
             </div>
@@ -347,6 +349,7 @@ export function TimeBlocks({
                       className={cn(
                         "absolute right-1 top-1 z-10 flex size-5 cursor-pointer items-center justify-center rounded-md bg-white/80 text-ink-2 shadow-sm outline-none",
                         "opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
+                        "[@media(hover:none)]:opacity-100",
                         "hover:bg-[#ff3b30] hover:text-white focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#ff3b30]/50",
                         selected && "opacity-100",
                       )}

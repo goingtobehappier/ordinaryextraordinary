@@ -121,11 +121,14 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
     <GlassPanel
       className={cn(
         "flex flex-col overflow-hidden",
-        variant === "modal" ? "h-[min(520px,80vh)] w-[min(960px,92vw)] bg-white/90 shadow-2xl" : "h-[300px]",
+        // 모바일: 메모·하위 작업을 상하로 쌓으므로 더 높게
+        variant === "modal"
+          ? "h-[min(640px,88dvh)] w-[min(960px,calc(100vw-24px))] bg-white/90 shadow-2xl md:h-[min(520px,80vh)]"
+          : "h-[560px] md:h-[300px]",
       )}
     >
       {/* 상단 바 */}
-      <div className="flex items-center gap-3 border-b border-black/5 px-6 py-3">
+      <div className="flex min-w-0 items-center gap-2 border-b border-black/5 px-4 py-3 sm:gap-3 sm:px-6">
         <button
           onClick={() => void toggleDone(todo, selectedDate)}
           className={cn(
@@ -150,8 +153,8 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
         />
         <SaveIndicator state={save} />
         {confirmDelete ? (
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-ink-2">
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="hidden whitespace-nowrap text-xs text-ink-2 sm:inline">
               {todo.repeat !== "none" ? "반복 일정 전체를 삭제할까요?" : "삭제할까요?"}
             </span>
             <GlassButton variant="danger" onClick={() => void deleteTodo(todo.id)}>
@@ -164,17 +167,20 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
             <Trash2 className="size-4" />
           </GlassButton>
         )}
-        <GlassButton onClick={() => selectTodo(null)} className="gap-1 px-2" title="닫기">
-          <ChevronDown className="size-4" />
-          {formatCombo(closeCombo).map((k) => (
-            <Kbd key={k}>{k}</Kbd>
-          ))}
+        <GlassButton onClick={() => selectTodo(null)} className="shrink-0 gap-1 px-2" title="닫기" aria-label="닫기">
+          <ChevronDown className="size-4 shrink-0" />
+          <span className="hidden gap-1 sm:flex">
+            {formatCombo(closeCombo).map((k) => (
+              <Kbd key={k}>{k}</Kbd>
+            ))}
+          </span>
         </GlassButton>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      {/* 모바일: 메모(상) · 하위 작업(하) / 태블릿 이상: 좌우 */}
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:grid-rows-1">
         {/* 메모 + 속성 */}
-        <div className="flex min-h-0 flex-col gap-3 border-r border-black/5 px-6 py-4">
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 border-b border-black/5 px-4 py-4 sm:px-6 md:border-b-0 md:border-r">
           <div className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
             <select
               value={todo.category}
@@ -188,7 +194,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
                 </option>
               ))}
             </select>
-            <span className="rounded-md bg-black/5 px-2 py-1">{formatLong(todo.date)} 시작</span>
+            <span className="whitespace-nowrap rounded-md bg-black/5 px-2 py-1">{formatLong(todo.date)} 시작</span>
             <label className="flex items-center gap-1 rounded-md bg-black/5 px-2 py-0.5">
               <Clock className="size-3" />
               <input
@@ -228,7 +234,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
               onBlur={commitTags}
               onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
               placeholder="#2차 태그"
-              className="h-7 w-44 rounded-md text-xs"
+              className="h-7 w-full min-w-0 rounded-md text-xs sm:w-44"
               aria-label="2차 태그"
             />
           </div>
@@ -247,7 +253,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
         </div>
 
         {/* 하위 작업 */}
-        <div className="flex min-h-0 flex-col px-5 py-4">
+        <div className="flex min-h-0 min-w-0 flex-col px-4 py-4 sm:px-5">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold">하위 작업</span>
             <span className="text-xs tabular-nums text-ink-2">

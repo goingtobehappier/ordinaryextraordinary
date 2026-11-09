@@ -64,7 +64,7 @@ export function ShortcutSettings() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcut-title"
-        className="w-[520px] rounded-2xl border border-white/40 bg-white/80 p-6 shadow-2xl backdrop-blur-2xl"
+        className="max-h-[90dvh] w-[min(520px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-white/40 bg-white/80 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
       >
         <div className="mb-5 flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-apple-blue/10">

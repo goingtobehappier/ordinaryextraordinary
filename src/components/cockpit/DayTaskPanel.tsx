@@ -53,19 +53,19 @@ export function DayTaskPanel({ className }: { className?: string }) {
   }
 
   return (
-    <GlassPanel className={cn("flex min-h-0 flex-col overflow-hidden print:hidden", className)}>
-      <div className="flex items-center gap-3 border-b border-black/5 px-5 py-4">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-apple-blue/10">
+    <GlassPanel className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden print:hidden", className)}>
+      <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-apple-blue/10">
           <ListChecks className="size-[18px] text-apple-blue" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-semibold">
+          <h2 className="truncate text-[15px] font-semibold">
             Task List
             {selectedDate === todayISO() && <span className="ml-1.5 text-xs font-medium text-apple-blue">오늘</span>}
           </h2>
           <p className="truncate text-xs text-ink-2">{formatLong(selectedDate)}</p>
         </div>
-        <span className="shrink-0 text-xs tabular-nums text-ink-2">
+        <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-2">
           {loading ? <Loader2 className="size-3.5 animate-spin" /> : `${doneCount}/${dayTodos.length} 완료`}
         </span>
       </div>
