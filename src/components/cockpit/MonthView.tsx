@@ -22,7 +22,7 @@ import { useDropToDate } from "./WeekBar";
 
 const MAX_ITEMS = 3;
 
-/** 월별 보기: 클릭 = 날짜 선택(우측 노트 연동), 더블클릭 = 일간 보기로 열기 */
+/** 월간 보기: 클릭 = 날짜 선택(우측 과업 리스트·노트 연동, 선택 유지), 더블클릭 = 일간 보기로 열기 */
 export function MonthView() {
   const selectedDate = useCockpit((s) => s.selectedDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
@@ -85,7 +85,11 @@ export function MonthView() {
               key={iso}
               role="button"
               tabIndex={0}
-              onClick={() => setSelectedDate(iso)}
+              // 이미 선택된 날짜를 다시 클릭해도 선택(및 열린 과업 상세)이 유지되도록
+              onClick={() => {
+                if (iso !== selectedDate) setSelectedDate(iso);
+              }}
+              aria-pressed={selected}
               onDoubleClick={() => {
                 setSelectedDate(iso);
                 setView("day");

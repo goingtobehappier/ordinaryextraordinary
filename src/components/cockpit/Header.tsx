@@ -81,10 +81,10 @@ export function Header({ user }: { user: CockpitUser }) {
 const VIEWS: { id: ViewMode; label: string; icon: typeof List; action: "viewDay" | "viewWeek" | "viewMonth" }[] = [
   { id: "day", label: "일간", icon: List, action: "viewDay" },
   { id: "week", label: "주간", icon: CalendarRange, action: "viewWeek" },
-  { id: "month", label: "월별 보기", icon: CalendarDays, action: "viewMonth" },
+  { id: "month", label: "월간", icon: CalendarDays, action: "viewMonth" },
 ];
 
-/** 일간 / 주간 / 월별 보기 전환 */
+/** 일간 / 주간 / 월간 보기 전환 */
 function ViewSwitcher() {
   const view = useCockpit((s) => s.view);
   const setView = useCockpit((s) => s.setView);

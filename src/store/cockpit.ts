@@ -36,7 +36,7 @@ export const SHORTCUT_META: Record<ShortcutAction, string> = {
   goToday: "오늘로 이동",
   viewDay: "일간 보기",
   viewWeek: "주간 보기",
-  viewMonth: "월별 보기",
+  viewMonth: "월간 보기",
   viewSummary: "요약 보기",
   closeDetail: "상세 패널 닫기",
   openShortcuts: "단축키 설정 열기",

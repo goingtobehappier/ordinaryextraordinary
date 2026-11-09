@@ -383,7 +383,22 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
 }
 
 // ───────────────────────────── 목록 ─────────────────────────────
-function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string; emptyFiltered: boolean }) {
+export function TodoList({
+  todos,
+  date,
+  emptyFiltered,
+  compact = false,
+  emptyHint = "위 입력창에서 할 일을 추가해 보세요.",
+  className,
+}: {
+  todos: Todo[];
+  date: string;
+  emptyFiltered: boolean;
+  /** 좁은 영역(월간 보기 우측)용: 태그를 1개만 표시하고 테두리 제거 */
+  compact?: boolean;
+  emptyHint?: string;
+  className?: string;
+}) {
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
   const selectTodo = useCockpit((s) => s.selectTodo);
   const toggleDone = useCockpit((s) => s.toggleDone);
@@ -391,16 +406,16 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
 
   if (todos.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-1 border-r border-black/5 text-center text-sm text-ink-2">
+      <div className={cn("flex flex-col items-center justify-center gap-1 px-4 text-center text-sm text-ink-2", !compact && "border-r border-black/5", className)}>
         <p className="font-medium text-ink">{emptyFiltered ? "필터에 맞는 할 일이 없어요" : "이 날은 비어 있어요"}</p>
-        <p>{emptyFiltered ? "태그 필터나 검색어를 확인하세요." : "위 입력창에서 할 일을 추가해 보세요."}</p>
+        <p>{emptyFiltered ? "태그 필터나 검색어를 확인하세요." : emptyHint}</p>
       </div>
     );
   }
 
   return (
     <>
-    <ul className="min-h-0 space-y-1.5 overflow-y-auto border-r border-black/5 px-4 py-3 scroll-thin">
+    <ul className={cn("min-h-0 space-y-1.5 overflow-y-auto px-4 py-3 scroll-thin", compact ? "px-3" : "border-r border-black/5", className)}>
       {todos.map((t) => {
         const done = isDoneOn(t, date);
         const selected = t.id === selectedTodoId;
@@ -423,7 +438,7 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
                   setPendingDelete(t);
                 }
               }}
-              title="타임블록이나 다른 날짜로 끌어다 놓을 수 있어요"
+              title={compact ? "달력의 다른 날짜로 끌어다 놓을 수 있어요" : "타임블록이나 다른 날짜로 끌어다 놓을 수 있어요"}
               className={cn(
                 "group flex cursor-pointer items-center gap-2.5 rounded-xl border py-2.5 pl-1.5 pr-3 outline-none",
                 "transition-[background-color,border-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-apple-blue/40",
@@ -463,7 +478,7 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
                       {t.end_time && `–${shortTime(t.end_time)}`}
                     </span>
                   ) : (
-                    <span>시간 미지정 · 타임블록으로 끌어다 놓기</span>
+                    <span>{compact ? "시간 미지정" : "시간 미지정 · 타임블록으로 끌어다 놓기"}</span>
                   )}
                   {t.repeat !== "none" && (
                     <span className="flex items-center gap-0.5 rounded-md bg-apple-blue/10 px-1.5 py-px text-[10px] font-medium text-apple-blue">
@@ -475,7 +490,7 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
               </div>
 
               <div className="flex shrink-0 gap-1">
-                {t.tags.slice(0, 3).map((tag) => (
+                {t.tags.slice(0, compact ? 1 : 3).map((tag) => (
                   <TagChip key={tag} tag={tag} />
                 ))}
               </div>

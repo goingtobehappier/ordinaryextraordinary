@@ -25,13 +25,13 @@ const TEMPLATE = `## 오늘의 포커스
 ## 회고
 `;
 
-export function DailyNote({ userId }: { userId: string }) {
+export function DailyNote({ userId, className }: { userId: string; className?: string }) {
   const selectedDate = useCockpit((s) => s.selectedDate);
   // 날짜별로 다시 마운트 → 이전 날짜의 미저장 내용은 언마운트 시 flush
-  return <NoteBody key={selectedDate} date={selectedDate} userId={userId} />;
+  return <NoteBody key={selectedDate} date={selectedDate} userId={userId} className={className} />;
 }
 
-function NoteBody({ date, userId }: { date: string; userId: string }) {
+function NoteBody({ date, userId, className }: { date: string; userId: string; className?: string }) {
   const combo = useCockpit((s) => s.shortcuts.focusNote);
   const bumpRev = useCockpit((s) => s.bumpRev);
   const [mode, setMode] = useState<Mode>("write");
@@ -132,7 +132,7 @@ function NoteBody({ date, userId }: { date: string; userId: string }) {
   const tasksDone = tasks.filter((t) => t !== "[ ]").length;
 
   return (
-    <GlassPanel className="flex min-h-0 flex-col overflow-hidden print:hidden">
+    <GlassPanel className={cn("flex min-h-0 flex-col overflow-hidden print:hidden", className)}>
       <div className="flex items-center gap-3 border-b border-black/5 px-5 py-4">
         <div className="flex size-9 items-center justify-center rounded-lg bg-apple-mint/15">
           <NotebookPen className="size-[18px] text-[#00a29b]" />

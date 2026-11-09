@@ -18,6 +18,7 @@ import { TaskEditModal } from "./TaskEditModal";
 import { TodoBoard, NEW_TODO_INPUT_ID } from "./TodoBoard";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { DailyNote, FOCUS_NOTE_EVENT } from "./DailyNote";
+import { DayTaskPanel } from "./DayTaskPanel";
 import { SEARCH_INPUT_ID } from "./SearchBar";
 import { ShortcutSettings } from "./ShortcutSettings";
 
@@ -143,7 +144,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const error = useCockpit((s) => s.error);
   const clearError = useCockpit((s) => s.clearError);
 
-  // 보기에 맞는 범위만 불러오기 (일간/주간 = 해당 주, 월별 = 6주 그리드)
+  // 보기에 맞는 범위만 불러오기 (일간/주간 = 해당 주, 월간 = 6주 그리드)
   const [rangeStart, rangeEnd] = useMemo(() => {
     if (view === "month") {
       const grid = monthGrid(selectedDate);
@@ -211,7 +212,15 @@ function CockpitApp({ user }: { user: CockpitUser }) {
           </div>
         </div>
 
-        <DailyNote userId={user.id} />
+        {view === "month" ? (
+          // 월간 보기: 우측 = 선택 날짜의 과업 리스트(상단) + Daily Scratchpad(하단)
+          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
+            <DayTaskPanel />
+            <DailyNote userId={user.id} />
+          </div>
+        ) : (
+          <DailyNote userId={user.id} />
+        )}
       </main>
 
       {isFullView(view) && selectedTodoId && <TaskEditModal />}
