@@ -163,7 +163,7 @@ function toPlainText(days: Day[], details: Map<string, Detail>) {
 
 /**
  * 요약 계층 뷰: 날짜 → 메인 업무(｜메모) → 하위 업무 → 당일메모 → 구분선.
- * 업무 클릭 → 수정 모달, 당일메모 클릭 → 우측 스크래치패드를 해당 날짜로.
+ * 업무 클릭 → 수정 모달, 당일메모 클릭 → 우측 Daily Memopad를 해당 날짜로.
  */
 export function SummaryView() {
   const range = useCockpit((s) => s.summaryRange);
@@ -294,7 +294,7 @@ export function SummaryView() {
                   <button
                     onClick={() => setSelectedDate(d.date)}
                     className={cn("rounded-md hover:text-apple-blue", d.date === selectedDate && "text-apple-blue")}
-                    title="우측 스크래치패드를 이 날짜로"
+                    title="우측 Daily Memopad를 이 날짜로"
                   >
                     {dayLabel(d.date)}
                   </button>
@@ -355,7 +355,7 @@ export function SummaryView() {
                     onClick={() => setSelectedDate(d.date)}
                     onKeyDown={(e) => e.key === "Enter" && setSelectedDate(d.date)}
                     data-print-avoid
-                    title="클릭하면 우측 스크래치패드에서 편집"
+                    title="클릭하면 우측 Daily Memopad에서 편집"
                     className="-mx-2 mt-4 cursor-pointer rounded-lg px-2 py-1.5 outline-none print:mx-0 print:px-0 transition-colors hover:bg-white/70"
                   >
                     <p className="flex items-center gap-1.5 text-[13px] font-semibold text-[#00857f]">

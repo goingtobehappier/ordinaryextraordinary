@@ -213,7 +213,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
         </div>
 
         {view === "month" ? (
-          // 월간 보기: 우측 = 선택 날짜의 과업 리스트(상단) + Daily Scratchpad(하단)
+          // 월간 보기: 우측 = 선택 날짜의 과업 리스트(상단) + Daily Memopad(하단)
           <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
             <DayTaskPanel />
             <DailyNote userId={user.id} />

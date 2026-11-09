@@ -138,7 +138,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
           <NotebookPen className="size-[18px] text-[#00a29b]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-semibold">Daily Scratchpad</h2>
+          <h2 className="text-[15px] font-semibold">Daily Memopad</h2>
           <p className="truncate text-xs text-ink-2">{formatLong(date)}</p>
         </div>
         <div className="flex rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">

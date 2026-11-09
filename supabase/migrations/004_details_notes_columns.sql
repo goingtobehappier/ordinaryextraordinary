@@ -1,6 +1,6 @@
 -- 현재 DB에 빠져 있는 컬럼만 보완합니다 (001이 일부만 적용된 상태 대응).
 --   todo_details.subtasks  : 하위 작업 저장 (없으면 하위 작업 저장 실패)
---   daily_notes.date       : 데일리 노트 저장/조회 (없으면 스크래치패드 저장 실패)
+--   daily_notes.date       : 데일리 노트 저장/조회 (없으면 Daily Memopad 저장 실패)
 --   todos.updated_at       : 수정 시각
 -- 기존 컬럼(sub_tasks, note_date)과 데이터는 유지하며 값을 옮겨 옵니다. 여러 번 실행해도 안전합니다.
 

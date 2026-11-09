@@ -20,7 +20,7 @@ body {
   font-family: var(--font-sans) !important;
 }
 
-/* 모든 텍스트(입력 폼·버튼·캘린더·스크래치패드 포함)에 Pretendard 강제 적용.
+/* 모든 텍스트(입력 폼·버튼·캘린더·Daily Memopad 포함)에 Pretendard 강제 적용.
    코드 블록·단축키 표기(code/pre/kbd)만 고정폭 유지 */
 *,
 *::before,
