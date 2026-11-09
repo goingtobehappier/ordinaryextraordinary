@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+@theme {
+  --color-apple-blue: #007aff;
+  --color-apple-mint: #00c7be;
+  --color-ink: #1d1d1f;
+  --color-ink-2: #6e6e73;
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: var(--font-sans) !important;
+}
+
+/* 모든 텍스트(입력 폼·버튼·캘린더·스크래치패드 포함)에 Pretendard 강제 적용.
+   코드 블록·단축키 표기(code/pre/kbd)만 고정폭 유지 */
+*,
+*::before,
+*::after,
+input,
+textarea,
+select,
+button,
+input::placeholder,
+textarea::placeholder {
+  font-family: var(--font-sans) !important;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono) !important;
+}
+
+body {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+  background:
+    radial-gradient(1200px 800px at 8% -10%, rgb(0 122 255 / 0.22), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, rgb(0 199 190 / 0.2), transparent 60%),
+    radial-gradient(900px 700px at 60% 110%, rgb(175 82 222 / 0.12), transparent 60%),
+    #eef1f6;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgb(0 122 255 / 0.2);
+}
+
+/* 얇은 macOS 스타일 스크롤바 */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.15) transparent;
+}
+
+/* ───────────── A4 인쇄 / PDF 저장 (요약 · 검색 결과) ─────────────
+   화면 UI(헤더·사이드·버튼 등)는 각 컴포넌트의 print:hidden 으로 숨기고,
+   여기서는 용지·흑백·페이지 나눔 규칙만 정의합니다. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 20mm 15mm; /* 상하 20mm · 좌우 15mm */
+  }
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body {
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #000;
+    -webkit-print-color-adjust: economy;
+    print-color-adjust: economy;
+  }
+
+  /* 유리 효과·그림자·애니메이션 제거 (흑백 인쇄에서 번짐 방지) */
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    backdrop-filter: none !important;
+    filter: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /* 인쇄 영역 컨테이너: 용지 테두리에 붙지 않도록 안쪽 여백 */
+  [data-print-root] {
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+  }
+
+  /* 요약 카드(날짜별 묶음) 간격 */
+  [data-print-card] {
+    margin-bottom: 16px !important;
+  }
+
+  /* 인쇄 본문: 흑백 + 배경 제거 */
+  [data-print-root],
+  [data-print-root] * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #9a9a9a !important;
+  }
+  [data-print-root] mark {
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  /* 페이지 나눔: 항목이 두 페이지에 걸쳐 잘리지 않도록 */
+  [data-print-avoid] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* 제목·날짜 헤더는 다음 내용과 같은 페이지에 */
+  [data-print-keep-next] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  /* 긴 텍스트는 말줄임 대신 줄바꿈 */
+  [data-print-root] .truncate {
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

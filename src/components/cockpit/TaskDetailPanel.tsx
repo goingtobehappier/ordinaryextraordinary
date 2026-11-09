@@ -1,0 +1,324 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Check, ChevronDown, Clock, Loader2, Plus, Repeat as RepeatIcon, Trash2, X } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useCockpit } from "@/store/cockpit";
+import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
+import { formatLong, isDoneOn, shortTime } from "@/lib/date";
+import { CATEGORIES, CATEGORY_STYLE, REPEAT_LABEL, type Category, type Repeat, type Subtask, type Todo } from "@/lib/types";
+import { cn } from "@/lib/cn";
+import { formatCombo } from "@/hooks/useHotkeys";
+import { GlassButton, GlassInput, GlassPanel, Kbd } from "@/components/ui/Glass";
+import { parseTags } from "./TodoBoard";
+
+export function TaskDetailPanel() {
+  const selectedTodoId = useCockpit((s) => s.selectedTodoId);
+  // 닫히는 애니메이션 동안 마지막 내용을 유지
+  const [shownId, setShownId] = useState(selectedTodoId);
+  if (selectedTodoId && selectedTodoId !== shownId) setShownId(selectedTodoId);
+
+  const todo = useCockpit((s) => s.todos.find((t) => t.id === shownId));
+  if (!todo) return <div className="h-[300px]" />;
+  return <DetailBody key={todo.id} todo={todo} />;
+}
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+/** 상세 편집 본문. panel = 하단 슬라이드 패널, modal = 검색·요약 뷰의 수정 모달 */
+export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: "panel" | "modal" }) {
+  const bumpRev = useCockpit((s) => s.bumpRev);
+  const userId = useCockpit((s) => s.userId);
+  const selectedDate = useCockpit((s) => s.selectedDate);
+  const selectTodo = useCockpit((s) => s.selectTodo);
+  const updateTodo = useCockpit((s) => s.updateTodo);
+  const deleteTodo = useCockpit((s) => s.deleteTodo);
+  const toggleDone = useCockpit((s) => s.toggleDone);
+  const closeCombo = useCockpit((s) => s.shortcuts.closeDetail);
+
+  const [loaded, setLoaded] = useState(false);
+  const [memo, setMemo] = useState("");
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [newSub, setNewSub] = useState("");
+  const [save, setSave] = useState<SaveState>("idle");
+  const [title, setTitle] = useState(todo.title);
+  const [tagsRaw, setTagsRaw] = useState(todo.tags.join(", "));
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .from("todo_details")
+      .select("memo, subtasks")
+      .eq("todo_id", todo.id)
+      .eq("user_id", userId ?? "")
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) setSave("error");
+        setMemo(data?.memo ?? "");
+        setSubtasks((data?.subtasks as Subtask[] | undefined) ?? []);
+        setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [todo.id, userId]);
+
+  async function persist(next: { memo: string; subtasks: Subtask[] }) {
+    setSave("saving");
+    const { error } = await createClient()
+      .from("todo_details")
+      .upsert({ todo_id: todo.id, user_id: userId, ...next }, { onConflict: "todo_id" });
+    setSave(error ? "error" : "saved");
+    if (!error) bumpRev();
+  }
+
+  const memoSaver = useDebouncedCallback((m: string, subs: Subtask[]) => persist({ memo: m, subtasks: subs }), 600);
+
+  function updateSubtasks(next: Subtask[]) {
+    setSubtasks(next);
+    memoSaver.call(memo, next);
+    memoSaver.flush();
+  }
+
+  function addSubtask() {
+    const text = newSub.trim();
+    if (!text) return;
+    updateSubtasks([...subtasks, { id: crypto.randomUUID(), text, done: false }]);
+    setNewSub("");
+  }
+
+  function commitTitle() {
+    const t = title.trim();
+    if (!t) setTitle(todo.title);
+    else if (t !== todo.title) void updateTodo(todo.id, { title: t });
+  }
+
+  function commitTags() {
+    const tags = parseTags(tagsRaw);
+    setTagsRaw(tags.join(", "));
+    if (tags.join() !== todo.tags.join()) void updateTodo(todo.id, { tags });
+  }
+
+  function commitTime(field: "start_time" | "end_time", input: HTMLInputElement) {
+    const v = input.value || null;
+    if (shortTime(v) === shortTime(todo[field])) return;
+    const other = field === "start_time" ? todo.end_time : todo.start_time;
+    const [s, e] = field === "start_time" ? [v, other] : [other, v];
+    if (s && e && shortTime(e) <= shortTime(s)) {
+      // 잘못된 범위는 되돌림 (DB 제약 위반 방지)
+      input.value = shortTime(todo[field]);
+      return;
+    }
+    void updateTodo(todo.id, { [field]: v });
+  }
+
+  const done = isDoneOn(todo, selectedDate);
+  const subDone = subtasks.filter((s) => s.done).length;
+
+  return (
+    <GlassPanel
+      className={cn(
+        "flex flex-col overflow-hidden",
+        variant === "modal" ? "h-[min(520px,80vh)] w-[min(960px,92vw)] bg-white/90 shadow-2xl" : "h-[300px]",
+      )}
+    >
+      {/* 상단 바 */}
+      <div className="flex items-center gap-3 border-b border-black/5 px-6 py-3">
+        <button
+          onClick={() => void toggleDone(todo, selectedDate)}
+          className={cn(
+            "flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
+            done ? "border-apple-mint bg-apple-mint" : "border-black/20 hover:border-apple-mint",
+          )}
+          aria-label={done ? "완료 취소" : "완료"}
+        >
+          <Check className={cn("size-4 text-white", !done && "opacity-0")} strokeWidth={3} />
+        </button>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={commitTitle}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className={cn(
+            "min-w-0 flex-1 rounded-lg bg-transparent px-1 text-[17px] font-semibold outline-none focus:bg-white/70",
+            done && "text-ink-2 line-through",
+          )}
+          maxLength={300}
+          aria-label="제목"
+        />
+        <SaveIndicator state={save} />
+        {confirmDelete ? (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-ink-2">
+              {todo.repeat !== "none" ? "반복 일정 전체를 삭제할까요?" : "삭제할까요?"}
+            </span>
+            <GlassButton variant="danger" onClick={() => void deleteTodo(todo.id)}>
+              삭제
+            </GlassButton>
+            <GlassButton onClick={() => setConfirmDelete(false)}>취소</GlassButton>
+          </div>
+        ) : (
+          <GlassButton variant="danger" className="px-2" onClick={() => setConfirmDelete(true)} aria-label="삭제">
+            <Trash2 className="size-4" />
+          </GlassButton>
+        )}
+        <GlassButton onClick={() => selectTodo(null)} className="gap-1 px-2" title="닫기">
+          <ChevronDown className="size-4" />
+          {formatCombo(closeCombo).map((k) => (
+            <Kbd key={k}>{k}</Kbd>
+          ))}
+        </GlassButton>
+      </div>
+
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        {/* 메모 + 속성 */}
+        <div className="flex min-h-0 flex-col gap-3 border-r border-black/5 px-6 py-4">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
+            <select
+              value={todo.category}
+              onChange={(e) => void updateTodo(todo.id, { category: e.target.value as Category })}
+              className={cn("rounded-md px-1.5 py-1 text-xs font-semibold outline-none", CATEGORY_STYLE[todo.category].badge)}
+              aria-label="1차 태그"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <span className="rounded-md bg-black/5 px-2 py-1">{formatLong(todo.date)} 시작</span>
+            <label className="flex items-center gap-1 rounded-md bg-black/5 px-2 py-0.5">
+              <Clock className="size-3" />
+              <input
+                type="time"
+                defaultValue={shortTime(todo.start_time)}
+                onBlur={(e) => commitTime("start_time", e.currentTarget)}
+                className="bg-transparent tabular-nums outline-none"
+                aria-label="시작 시간"
+              />
+              –
+              <input
+                type="time"
+                defaultValue={shortTime(todo.end_time)}
+                onBlur={(e) => commitTime("end_time", e.currentTarget)}
+                className="bg-transparent tabular-nums outline-none"
+                aria-label="종료 시간"
+              />
+            </label>
+            <label className="flex items-center gap-1 rounded-md bg-black/5 px-2 py-0.5">
+              <RepeatIcon className="size-3" />
+              <select
+                value={todo.repeat}
+                onChange={(e) => void updateTodo(todo.id, { repeat: e.target.value as Repeat })}
+                className="bg-transparent outline-none"
+                aria-label="반복"
+              >
+                {(Object.keys(REPEAT_LABEL) as Repeat[]).map((r) => (
+                  <option key={r} value={r}>
+                    {REPEAT_LABEL[r]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <GlassInput
+              value={tagsRaw}
+              onChange={(e) => setTagsRaw(e.target.value)}
+              onBlur={commitTags}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              placeholder="#2차 태그"
+              className="h-7 w-44 rounded-md text-xs"
+              aria-label="2차 태그"
+            />
+          </div>
+
+          <textarea
+            value={memo}
+            onChange={(e) => {
+              setMemo(e.target.value);
+              memoSaver.call(e.target.value, subtasks);
+            }}
+            onBlur={memoSaver.flush}
+            disabled={!loaded}
+            placeholder={loaded ? "세부 메모를 작성하세요…" : "불러오는 중…"}
+            className="min-h-0 flex-1 resize-none rounded-xl border border-black/5 bg-white/50 p-3 text-sm leading-relaxed outline-none transition-[background-color,box-shadow] focus:bg-white/80 focus:ring-2 focus:ring-apple-blue/30 scroll-thin"
+          />
+        </div>
+
+        {/* 하위 작업 */}
+        <div className="flex min-h-0 flex-col px-5 py-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-semibold">하위 작업</span>
+            <span className="text-xs tabular-nums text-ink-2">
+              {subDone}/{subtasks.length}
+            </span>
+          </div>
+          <div className="mb-2 h-1 overflow-hidden rounded-full bg-black/5">
+            <div
+              className="h-full rounded-full bg-apple-mint transition-[width] duration-300"
+              style={{ width: subtasks.length ? `${(subDone / subtasks.length) * 100}%` : 0 }}
+            />
+          </div>
+          <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto scroll-thin">
+            {subtasks.map((s) => (
+              <li key={s.id} className="group flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-black/[0.03]">
+                <button
+                  onClick={() => updateSubtasks(subtasks.map((x) => (x.id === s.id ? { ...x, done: !x.done } : x)))}
+                  className={cn(
+                    "flex size-[18px] shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors",
+                    s.done ? "border-apple-blue bg-apple-blue" : "border-black/20 hover:border-apple-blue",
+                  )}
+                  aria-label={s.done ? "완료 취소" : "완료"}
+                >
+                  <Check className={cn("size-3 text-white", !s.done && "opacity-0")} strokeWidth={3} />
+                </button>
+                <span className={cn("flex-1 truncate text-sm", s.done && "text-ink-2 line-through")}>{s.text}</span>
+                <button
+                  onClick={() => updateSubtasks(subtasks.filter((x) => x.id !== s.id))}
+                  className="rounded p-0.5 text-ink-2 opacity-0 transition-opacity hover:bg-black/5 group-hover:opacity-100"
+                  aria-label="하위 작업 삭제"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              addSubtask();
+            }}
+            className="mt-2 flex gap-1.5"
+          >
+            <GlassInput
+              value={newSub}
+              onChange={(e) => setNewSub(e.target.value)}
+              placeholder="하위 작업 추가"
+              className="h-8 flex-1"
+              disabled={!loaded}
+            />
+            <GlassButton type="submit" variant="mint" className="h-8 px-2" disabled={!newSub.trim()} aria-label="추가">
+              <Plus className="size-4" />
+            </GlassButton>
+          </form>
+        </div>
+      </div>
+    </GlassPanel>
+  );
+}
+
+function SaveIndicator({ state }: { state: SaveState }) {
+  if (state === "idle") return null;
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-1 text-xs",
+        state === "error" ? "text-[#c4271d]" : "text-ink-2",
+      )}
+    >
+      {state === "saving" && <Loader2 className="size-3 animate-spin" />}
+      {state === "saving" ? "저장 중" : state === "saved" ? "저장됨" : "저장 실패"}
+    </span>
+  );
+}
