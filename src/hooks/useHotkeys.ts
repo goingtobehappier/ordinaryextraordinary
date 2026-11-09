@@ -89,6 +89,8 @@ export function useHotkeys(bindings: Record<string, () => void>, enabled = true)
     if (!enabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.isComposing && !e.altKey && !e.ctrlKey && !e.metaKey) return;
+      // 확인 다이얼로그(삭제 확인 등)가 열려 있으면 전역 단축키 중지
+      if (document.querySelector('[role="alertdialog"]')) return;
       const combo = comboFromEvent(e);
       if (!combo) return;
       if (!hasModifier(combo)) {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Utensils } from "lucide-react";
+import { Trash2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import { isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { CATEGORY_STYLE, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
 const HOUR_PX = 52;
 const DAY_START = 6 * 60; // 06:00
@@ -88,6 +89,7 @@ export function TimeBlocks({
   const gridRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Todo | null>(null);
   const [nowMin, setNowMin] = useState(() => {
     const d = new Date();
     return d.getHours() * 60 + d.getMinutes();
@@ -211,7 +213,11 @@ export function TimeBlocks({
   }
 
   function onBlockKeyDown(e: React.KeyboardEvent, b: Block) {
-    if (e.key === "Enter" || e.key === " ") {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Delete") {
+      e.preventDefault();
+      setPendingDelete(b.todo);
+    } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       selectTodo(selectedTodoId === b.todo.id ? null : b.todo.id);
     } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !e.altKey) {
@@ -327,7 +333,29 @@ export function TimeBlocks({
                     <span className="mt-0.5 h-[3px] w-6 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-40" />
                   </span>
 
-                  <div className={cn("truncate text-xs font-semibold", done && "line-through")}>
+                  {/* 과업 삭제 (드래그 시작과 분리하기 위해 포인터 이벤트 전파 차단) */}
+                  {!active && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingDelete(b.todo);
+                      }}
+                      aria-label={`${b.todo.title} 과업 삭제`}
+                      title="과업 삭제 (Delete)"
+                      className={cn(
+                        "absolute right-1 top-1 z-10 flex size-5 cursor-pointer items-center justify-center rounded-md bg-white/80 text-ink-2 shadow-sm outline-none",
+                        "opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
+                        "hover:bg-[#ff3b30] hover:text-white focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#ff3b30]/50",
+                        selected && "opacity-100",
+                      )}
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  )}
+
+                  <div className={cn("truncate pr-5 text-xs font-semibold", done && "line-through")}>
                     <span className="mr-1 opacity-70">[{b.todo.category}]</span>
                     {b.todo.title}
                   </div>
@@ -353,6 +381,7 @@ export function TimeBlocks({
           )}
         </div>
       </div>
+      <ConfirmDeleteDialog todo={pendingDelete} onClose={() => setPendingDelete(null)} />
     </div>
   );
 }

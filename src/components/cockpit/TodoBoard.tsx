@@ -11,6 +11,7 @@ import {
   Plus,
   Repeat as RepeatIcon,
   Tags,
+  Trash2,
 } from "lucide-react";
 import { DEFAULT_TAG, useCockpit } from "@/store/cockpit";
 import {
@@ -39,6 +40,7 @@ import { CategoryBadge, GlassButton, GlassInput, GlassPanel, Kbd, TagChip } from
 import { CategoryPicker } from "./CategoryPicker";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { TimeBlocks } from "./TimeBlocks";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
 export const NEW_TODO_INPUT_ID = "cockpit-new-todo";
 
@@ -385,6 +387,7 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
   const selectTodo = useCockpit((s) => s.selectTodo);
   const toggleDone = useCockpit((s) => s.toggleDone);
+  const [pendingDelete, setPendingDelete] = useState<Todo | null>(null);
 
   if (todos.length === 0) {
     return (
@@ -396,6 +399,7 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
   }
 
   return (
+    <>
     <ul className="min-h-0 space-y-1.5 overflow-y-auto border-r border-black/5 px-4 py-3 scroll-thin">
       {todos.map((t) => {
         const done = isDoneOn(t, date);
@@ -409,9 +413,14 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
               onDragStart={(e) => startTodoDrag(e, t)}
               onClick={() => selectTodo(selected ? null : t.id)}
               onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   selectTodo(selected ? null : t.id);
+                } else if (e.key === "Delete") {
+                  // 포커스된 항목에서 Delete 키 → 삭제 확인
+                  e.preventDefault();
+                  setPendingDelete(t);
                 }
               }}
               title="타임블록이나 다른 날짜로 끌어다 놓을 수 있어요"
@@ -470,10 +479,30 @@ function TodoList({ todos, date, emptyFiltered }: { todos: Todo[]; date: string;
                   <TagChip key={tag} tag={tag} />
                 ))}
               </div>
+              <button
+                type="button"
+                draggable={false}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPendingDelete(t);
+                }}
+                aria-label={`${t.title} 과업 삭제`}
+                title="과업 삭제 (Delete)"
+                className={cn(
+                  "-mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-2/60 outline-none",
+                  "opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
+                  "hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#ff3b30]/40",
+                  selected && "opacity-100",
+                )}
+              >
+                <Trash2 className="size-4" />
+              </button>
             </div>
           </li>
         );
       })}
     </ul>
+    <ConfirmDeleteDialog todo={pendingDelete} onClose={() => setPendingDelete(null)} />
+    </>
   );
 }

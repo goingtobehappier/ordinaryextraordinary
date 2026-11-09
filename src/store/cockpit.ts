@@ -372,9 +372,16 @@ export const useCockpit = create<CockpitState>()(
           overdue: prevOverdue.filter((t) => t.id !== id),
           selectedTodoId: get().selectedTodoId === id ? null : get().selectedTodoId,
         });
-        const { error } = await supabase().from("todos").delete().eq("id", id).eq("user_id", uid() ?? "");
-        if (error) set({ todos: prev, overdue: prevOverdue, error: error.message });
-        else set((s) => ({ rev: s.rev + 1 }));
+        const { data, error } = await supabase()
+          .from("todos")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", uid() ?? "")
+          .select("id");
+        // RLS로 걸러지면 오류 없이 0건 삭제되므로, 실제 삭제 건수까지 확인
+        if (error || !data?.length) {
+          set({ todos: prev, overdue: prevOverdue, error: error?.message ?? "과업을 삭제하지 못했습니다. 다시 시도해 주세요." });
+        } else set((s) => ({ rev: s.rev + 1 }));
       },
 
       toggleDone: async (todo, date) => {
