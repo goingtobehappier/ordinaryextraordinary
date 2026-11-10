@@ -164,3 +164,45 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* 과업 시간 알림 토스트: 아래에서 스르륵 올라오고, 닫을 때 오른쪽으로 빠지며 사라짐 */
+@keyframes reminder-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes reminder-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px) scale(0.96);
+  }
+}
+
+/* 시작 시각 도달 시 종 아이콘 흔들림 */
+@keyframes reminder-ring {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  15%,
+  45% {
+    transform: rotate(-14deg);
+  }
+  30%,
+  60% {
+    transform: rotate(14deg);
+  }
+  75% {
+    transform: rotate(0);
+  }
+}

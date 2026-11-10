@@ -21,6 +21,7 @@ import { DailyNote, FOCUS_NOTE_EVENT } from "./DailyNote";
 import { DayTaskPanel } from "./DayTaskPanel";
 import { SEARCH_INPUT_ID } from "./SearchBar";
 import { ShortcutSettings } from "./ShortcutSettings";
+import { TaskReminders } from "./TaskReminders";
 
 const noopSubscribe = () => () => {};
 
@@ -227,6 +228,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 
       {isFullView(view) && selectedTodoId && <TaskEditModal />}
       {shortcutsOpen && <ShortcutSettings />}
+      <TaskReminders userId={user.id} />
 
       {error && (
         <div
