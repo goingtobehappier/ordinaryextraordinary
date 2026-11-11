@@ -96,14 +96,43 @@ export async function requestNotifyPermission(): Promise<NotifyPermission> {
   }
 }
 
+/** 알림 시각 요소 (서버 푸시 send-alarms와 동일) */
+const NOTIFY_ICON = "/icons/icon-192.png";
+/** 상태바 미니 아이콘: 흰색 실루엣 · 투명 배경 (Android는 알파 마스크로만 그림) */
+const NOTIFY_BADGE = "/icons/badge-96.png";
+const NOTIFY_VIBRATE = [100, 50, 100, 50, 200];
+const DEFAULT_TAG = "기타업무";
+
+/**
+ * 알림 문구 (서버 푸시 send-alarms의 formatAlarm과 같은 형식 — 같은 tag로 교체돼도 모양이 같음)
+ *  제목: "✨ 업무명"(미리) / "⏰ 업무명"(정각) — 브랜드 문구 없이 이모지 + 일정 제목
+ *  본문: "⏰ 14:00 – 15:00 · 5분 후 시작" + 줄바꿈 "🏷️ 미팅 · #태그"
+ */
+export function formatAlarm(
+  t: { title: string; category: string; tags: string[]; start_time: string | null; end_time: string | null },
+  phase: "pre" | "start",
+  minutesLeft: number,
+  time: string,
+) {
+  const status = phase === "start" ? "지금 시작" : `${minutesLeft}분 후 시작`;
+  const tags = t.tags.filter((tag) => tag !== DEFAULT_TAG).map((tag) => `#${tag}`);
+  const meta = [t.category, ...tags].filter(Boolean).join(" · ");
+  return {
+    title: `${phase === "start" ? "⏰" : "✨"} ${t.title}`,
+    body: `⏰ ${time} · ${status}${meta ? `\n🏷️ ${meta}` : ""}`,
+  };
+}
+
 /** 시스템 알림 표시. 같은 tag는 기존 알림을 대체 (여러 탭에서 열어도 하나만 남음) */
 export async function showSystemNotification(title: string, options: { body?: string; tag: string }) {
   if (notifyPermission() !== "granted") return false;
-  const opts: NotificationOptions = {
+  // vibrate는 표준 옵션이지만 TS lib.dom 타입에는 빠져 있음
+  const opts: NotificationOptions & { vibrate?: number[] } = {
     body: options.body,
     tag: options.tag,
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: NOTIFY_ICON,
+    badge: NOTIFY_BADGE,
+    vibrate: NOTIFY_VIBRATE,
     data: { url: "/" },
   };
   try {

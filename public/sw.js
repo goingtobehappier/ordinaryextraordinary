@@ -26,8 +26,10 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(d.title || "업무 알림", {
       body: d.body || "",
       tag: d.tag,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      icon: d.icon || "/icons/icon-192.png",
+      // 상태바 미니 아이콘: 흰색 실루엣(투명 배경)이어야 Android에서 로고 모양으로 보임
+      badge: d.badge || "/icons/badge-96.png",
+      vibrate: Array.isArray(d.vibrate) ? d.vibrate : [100, 50, 100, 50, 200],
       data: { url: d.url || "/" },
       // 정각 알림은 사용자가 닫을 때까지 유지 (지원 브라우저)
       requireInteraction: d.phase === "start",

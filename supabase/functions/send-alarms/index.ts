@@ -1,8 +1,9 @@
 // 타임테이블 백그라운드 알림 발송 (Supabase Edge Function · Deno)
 //
 // 매분 Supabase Cron(pg_cron → pg_net)이 호출 → 각 기기의 시간대 기준으로
-//   - 시작 5분 전: "N분 후 업무 시작: [업무명]"
-//   - 시작 시각  : "업무 시작 시간입니다: [업무명]"
+//   - 시작 5분 전: 제목 "✨ [업무명]", 본문 "⏰ 14:00 – 15:00 · 5분 후 시작" + "🏷️ 미팅 · #태그"
+//   - 시작 시각  : 제목 "⏰ [업무명]", 본문 "⏰ 14:00 – 15:00 · 지금 시작" + "🏷️ 미팅 · #태그"
+//   (브랜드 문구 없이 이모지 + 일정 제목만. 앱 안 알림 lib/alarm.ts formatAlarm과 같은 형식)
 // 을 Web Push로 보냄. 서비스 워커(public/sw.js)가 받아 OS 알림으로 표시 → 탭을 닫아도 도착.
 //
 // 필요한 시크릿 (supabase secrets set ...):
@@ -18,11 +19,20 @@ const LEAD_MIN = 5;
 const START_GRACE_MIN = 2;
 const LOG_KEEP_DAYS = 3;
 
+/** 알림 시각 요소 (public/icons) */
+const ICON = "/icons/icon-192.png"; // 브랜드 로고
+const BADGE = "/icons/badge-96.png"; // 상태바 미니 아이콘 (흰색 실루엣 · 투명 배경)
+const VIBRATE = [100, 50, 100, 50, 200];
+/** 기본 태그는 알림에서 생략 */
+const DEFAULT_TAG = "기타업무";
+
 type Repeat = "none" | "daily" | "weekdays" | "weekly" | "monthly";
 type Todo = {
   id: string;
   user_id: string;
   title: string;
+  category: string;
+  tags: string[];
   date: string;
   start_time: string | null;
   end_time: string | null;
@@ -93,11 +103,25 @@ function normalize(r: Record<string, unknown>): Todo {
     id: String(row.id),
     user_id: String(row.user_id),
     title: row.title ?? "",
+    category: typeof row.category === "string" ? row.category : "",
+    tags: Array.isArray(row.tags) ? row.tags.filter((t): t is string => typeof t === "string") : [],
     date: String(row.date ?? row.due_date ?? row.created_at ?? "").slice(0, 10),
     start_time: row.start_time ?? null,
     end_time: row.end_time ?? null,
     repeat: REPEATS.includes(row.repeat as Repeat) ? (row.repeat as Repeat) : "none",
     completed_dates: Array.isArray(row.completed_dates) ? row.completed_dates : [],
+  };
+}
+
+/** 알림 문구: 제목 = 이모지 + 일정 제목 / 본문 = ⏰ 시간 · 상태 + 🏷️ 카테고리 · #태그 */
+function formatAlarm(t: Todo, phase: "pre" | "start", minutesLeft: number) {
+  const time = `${hhmm(t.start_time)}${t.end_time ? ` – ${endLabel(t.end_time)}` : ""}`;
+  const status = phase === "start" ? "지금 시작" : `${minutesLeft}분 후 시작`;
+  const tags = t.tags.filter((tag) => tag !== DEFAULT_TAG).map((tag) => `#${tag}`);
+  const meta = [t.category, ...tags].filter(Boolean).join(" · ");
+  return {
+    title: `${phase === "start" ? "⏰" : "✨"} ${t.title}`,
+    body: `⏰ ${time} · ${status}${meta ? `\n🏷️ ${meta}` : ""}`,
   };
 }
 
@@ -155,8 +179,7 @@ Deno.serve(async (req) => {
         key: `${base}|${phase}`,
         tag: `${base}|${phase}`,
         phase,
-        title: phase === "start" ? `업무 시작 시간입니다: ${t.title}` : `${start - min}분 후 업무 시작: ${t.title}`,
-        body: `${hhmm(t.start_time)}${t.end_time ? ` – ${endLabel(t.end_time)}` : ""}`,
+        ...formatAlarm(t, phase, start - min),
       });
       // 늦게 감지된 정각 알림이면 미리 알림은 건너뜀
       if (phase === "start") {
@@ -182,7 +205,16 @@ Deno.serve(async (req) => {
   const jobs: Promise<void>[] = [];
   for (const a of due) {
     if (!fresh.has(`${a.userId}|${a.key}`)) continue;
-    const payload = JSON.stringify({ title: a.title, body: a.body, tag: a.tag, url: "/", phase: a.phase });
+    const payload = JSON.stringify({
+      title: a.title,
+      body: a.body,
+      tag: a.tag,
+      url: "/",
+      phase: a.phase,
+      icon: ICON,
+      badge: BADGE,
+      vibrate: VIBRATE,
+    });
     for (const s of groups.get(`${a.userId}|${a.tz}`)!.subs) {
       jobs.push(
         webpush

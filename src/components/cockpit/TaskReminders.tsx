@@ -9,7 +9,7 @@ import { CATEGORY_STYLE, normalizeTodo, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { CategoryBadge } from "@/components/ui/Glass";
 import { useAlarm } from "@/store/alarm";
-import { installAudioUnlock, playChime, showSystemNotification } from "@/lib/alarm";
+import { formatAlarm, installAudioUnlock, playChime, showSystemNotification } from "@/lib/alarm";
 import { removePushSubscription, syncPushSubscription } from "@/lib/pushSubscription";
 
 /** 시작 몇 분 전부터 알릴지 */
@@ -119,11 +119,9 @@ function fireAlarms(userId: string, date: string, nowMin: number, list: Todo[]) 
   playChime(alarms.some((a) => a.phase === "start") ? "start" : "pre");
   for (const { todo, phase, start } of alarms) {
     const time = `${shortTime(todo.start_time)}${todo.end_time ? ` – ${endTimeLabel(todo.end_time)}` : ""}`;
-    void showSystemNotification(
-      phase === "start" ? `업무 시작 시간입니다: ${todo.title}` : `${start - nowMin}분 후 업무 시작: ${todo.title}`,
-      // 서버 푸시(send-alarms)와 같은 tag → 둘 다 도착해도 알림 하나로 합쳐짐. 미리/정각은 별도 알림
-      { body: time, tag: `${reminderKey(todo, date)}|${phase}` },
-    );
+    const { title, body } = formatAlarm(todo, phase, start - nowMin, time);
+    // 서버 푸시(send-alarms)와 같은 tag·문구 → 둘 다 도착해도 알림 하나로 합쳐짐. 미리/정각은 별도 알림
+    void showSystemNotification(title, { body, tag: `${reminderKey(todo, date)}|${phase}` });
   }
 }
 
