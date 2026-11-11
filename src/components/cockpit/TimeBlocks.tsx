@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, Trash2, Undo2, Utensils } from "lucide-react";
+import { ArrowDown, Trash2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import { useLunch } from "@/store/lunch";
 import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
@@ -300,17 +300,35 @@ export function TimeBlocks({
           타임블록<span className="hidden lg:inline"> · 목록에서 끌어다 놓기</span>
         </span>
         <span className="flex shrink-0 items-center gap-2 whitespace-nowrap tabular-nums">
-          {lunchSkipped && (
-            <button
-              type="button"
-              onClick={() => void toggleLunch(false)}
-              className="flex items-center gap-1 rounded-md bg-[#ff9500]/10 px-1.5 py-0.5 font-medium text-[#b86b00] transition-colors hover:bg-[#ff9500]/20"
-              title="이 날짜의 점심시간을 다시 표시"
-            >
-              <Undo2 className="size-3" />
-              점심 복원
-            </button>
-          )}
+          {/* 점심시간 토글: 켜짐 = 선명한 아이콘 / 당일 삭제 = 반투명 + 사선 */}
+          <button
+            type="button"
+            onClick={() => void toggleLunch(!lunchSkipped)}
+            aria-pressed={!lunchSkipped}
+            aria-label={lunchSkipped ? "오늘 점심시간 복원" : "오늘 점심시간 삭제"}
+            title={
+              lunchSkipped
+                ? `점심시간 꺼짐 · 클릭하면 복원 (${clockLabel(LUNCH.start)}–${clockLabel(LUNCH.end)})`
+                : "점심시간 켜짐 · 클릭하면 이 날짜만 삭제"
+            }
+            className={cn(
+              "relative flex size-6 items-center justify-center rounded-md outline-none transition-[background-color,color,opacity] duration-150",
+              "focus-visible:ring-2 focus-visible:ring-[#ff9500]/50 active:scale-95 motion-reduce:active:scale-100",
+              lunchSkipped
+                ? "text-ink-2 opacity-45 hover:bg-black/5 hover:opacity-80"
+                : "bg-[#ff9500]/12 text-[#b86b00] hover:bg-[#ff9500]/20",
+            )}
+          >
+            <Utensils className="size-3.5" />
+            {/* 꺼짐 표시 사선 */}
+            <span
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute h-[1.5px] w-[18px] rotate-[-45deg] rounded-full bg-current transition-opacity duration-150",
+                lunchSkipped ? "opacity-100" : "opacity-0",
+              )}
+            />
+          </button>
           배분 {Math.floor(totalMinutes / 60)}시간 {totalMinutes % 60}분
         </span>
       </div>
