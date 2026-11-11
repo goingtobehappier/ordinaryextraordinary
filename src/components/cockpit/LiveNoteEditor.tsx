@@ -168,6 +168,14 @@ export function LiveNoteEditor({
 
   /** 줄 텍스트 변경. 빈 문단에서 "- " 같은 기호를 치면 서식으로 바뀌므로 커서를 보정 */
   function editText(i: number, text: string, caret: number) {
+    // 제목 글자를 모두 지우면 제목 서식도 해제 → 빈 줄이 큰 글씨로 남지 않음
+    // (빈 문단에서 "## "를 입력해 제목을 만드는 경우는 이전 줄이 문단이라 해당 없음)
+    if (lines[i].kind === "h" && lines[i].text !== "" && text === "") {
+      const next = [...lines];
+      next[i] = { kind: "p", text: "" };
+      commit(next, { line: i, pos: 0 });
+      return;
+    }
     const raw = prefix(lines[i]) + text;
     const reparsed = parse(raw);
     const next = [...lines];

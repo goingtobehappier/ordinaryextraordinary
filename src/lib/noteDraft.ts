@@ -6,7 +6,7 @@
  */
 
 export type NoteDraft = { content: string; savedAt: number; base: string | null };
-export type NoteUndo = { content: string; reason: "template" | "conflict"; at: number };
+export type NoteUndo = { content: string; reason: "template" | "clear" | "conflict"; at: number };
 
 const UNDO_TTL_MS = 7 * 24 * 60 * 60_000;
 const draftKey = (userId: string, date: string) => `memopad-draft:${userId}:${date}`;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CloudCheck, CloudOff, Code2, Columns2, Eye, LayoutTemplate, Loader2, NotebookPen, PencilLine, TriangleAlert, Undo2 } from "lucide-react";
+import { CloudCheck, CloudOff, Code2, Eraser, Columns2, Eye, LayoutTemplate, Loader2, NotebookPen, PencilLine, TriangleAlert, Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -41,6 +41,13 @@ export function DailyNote({ userId, className }: { userId: string; className?: s
  *  offline: 서버에서 불러오지 못함 (아직 보관할 변경 없음)
  *  failed : 서버·이 기기 모두 저장 실패 (메모리에만 있음)
  */
+/** 되돌리기 버튼 문구 (백업 사유별) */
+const UNDO_COPY: Record<NoteUndo["reason"], { label: string; title: string }> = {
+  template: { label: "템플릿 원복", title: "템플릿 적용 전 내용으로 되돌리기" },
+  clear: { label: "초기화 취소", title: "초기화 전 내용으로 되돌리기" },
+  conflict: { label: "이 기기 내용 복구", title: "다른 곳의 변경에 밀려난 이 기기 작성 내용으로 되돌리기" },
+};
+
 type SaveStatus = "idle" | "pending" | "saving" | "saved" | "local" | "offline" | "failed";
 
 /** 서버 저장 실패 시 재시도 간격 */
@@ -60,6 +67,8 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   const [undo, setUndo] = useState<NoteUndo | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const liveRef = useRef<LiveNoteEditorHandle>(null);
+  /** 원복·초기화 시 서식 편집기를 새로 마운트하기 위한 키 */
+  const [editorRev, setEditorRev] = useState(0);
   /** 서버의 현재 버전을 알고 있는지. 모르면(불러오기 실패) 서버에 쓰지 않고 이 기기에만 저장 */
   const serverKnown = useRef(false);
   /** 마지막으로 확인한 서버 버전 (draft.base와 비교해 덮어쓰기 충돌 판단) */
@@ -261,11 +270,8 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   /** 템플릿 적용: 작성 중이던 내용이 있으면 되돌리기용으로 백업 후 교체 */
   function applyTemplate() {
     if (!loaded || content === TEMPLATE) return;
-    if (content.trim()) {
-      const backup: NoteUndo = { content, reason: "template", at: Date.now() };
-      writeUndo(userId, date, backup);
-      setUndo(backup);
-    }
+    // 빈 메모였어도 백업 → 원복하면 서식 없는 빈 본문으로 정확히 돌아감
+    backupBeforeReplace("template");
     const target = mode === "preview" ? "live" : mode;
     if (target !== mode) setMode(target);
     change(TEMPLATE);
@@ -273,13 +279,39 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
     focusAfterTemplate(target);
   }
 
-  /** 백업한 내용으로 되돌림 */
+  function backupBeforeReplace(reason: NoteUndo["reason"]) {
+    const backup: NoteUndo = { content, reason, at: Date.now() };
+    writeUndo(userId, date, backup);
+    setUndo(backup);
+  }
+
+  /**
+   * 내용을 통째로 바꿀 때(원복·초기화): 서식 편집기를 새로 마운트해
+   * 포커스 줄·커서·줄 높이 등 이전 블록 상태가 남지 않게 하고 첫 줄에 포커스
+   */
+  function replaceContent(next: string) {
+    change(next);
+    saver.flush();
+    setEditorRev((r) => r + 1);
+    requestAnimationFrame(() => {
+      if (mode === "write" || mode === "split") taRef.current?.focus();
+      else document.querySelector<HTMLTextAreaElement>("[data-note-live] textarea")?.focus();
+    });
+  }
+
+  /** 백업한 내용으로 되돌림 (템플릿 적용 전 빈 메모였다면 서식 없는 빈 본문) */
   function restoreUndo() {
     if (!undo) return;
     writeUndo(userId, date, null);
     setUndo(null);
-    change(undo.content);
-    saver.flush();
+    replaceContent(undo.content);
+  }
+
+  /** 초기화: 내용과 블록 서식을 모두 지우고 일반 본문으로 (되돌리기 가능) */
+  function clearNote() {
+    if (!loaded || !content) return;
+    backupBeforeReplace("clear");
+    replaceContent("");
   }
 
   function toggleTask(lineIndex: number) {
@@ -339,12 +371,21 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
           <button
             onClick={restoreUndo}
             className="flex shrink-0 items-center gap-1 rounded-lg bg-apple-blue/10 px-2 py-1.5 text-xs font-medium text-apple-blue transition-colors hover:bg-apple-blue/15"
-            title={undo.reason === "template" ? "템플릿 적용 전 내용으로 되돌리기" : "다른 곳의 변경에 밀려난 이 기기 작성 내용으로 되돌리기"}
+            title={UNDO_COPY[undo.reason].title}
           >
             <Undo2 className="size-3.5" />
-            <span className="hidden sm:inline">{undo.reason === "template" ? "템플릿 원복" : "이 기기 내용 복구"}</span>
+            <span className="hidden sm:inline">{UNDO_COPY[undo.reason].label}</span>
           </button>
         )}
+        <button
+          onClick={clearNote}
+          disabled={!loaded || !content}
+          className="shrink-0 rounded-lg p-1.5 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink disabled:opacity-40"
+          title="초기화: 내용과 제목·목록 서식을 모두 지우고 일반 본문으로 (되돌리기 가능)"
+          aria-label="메모 초기화"
+        >
+          <Eraser className="size-4" />
+        </button>
         <button
           onClick={applyTemplate}
           disabled={!loaded}
@@ -384,7 +425,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
       <div className={cn("grid min-h-0 flex-1", mode === "split" ? "grid-rows-2" : "grid-rows-1")}>
         {mode === "live" && (
           <div className="relative min-h-0">
-            <LiveNoteEditor ref={liveRef} value={content} onChange={change} onBlur={saver.flush} disabled={!loaded} />
+            <LiveNoteEditor key={editorRev} ref={liveRef} value={content} onChange={change} onBlur={saver.flush} disabled={!loaded} />
             {loaded && !content && <TemplateButton onClick={applyTemplate} />}
           </div>
         )}
