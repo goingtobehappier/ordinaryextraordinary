@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { GlassPanel, Kbd } from "@/components/ui/Glass";
 import { Markdown } from "./Markdown";
 import { LiveNoteEditor, type LiveNoteEditorHandle } from "./LiveNoteEditor";
+import { describeNoteError, loadNote, saveNote, type DbError } from "@/lib/dailyNotes";
 import { clearDraft, clearDraftIf, readDraft, readUndo, writeDraft, writeUndo, type NoteUndo } from "@/lib/noteDraft";
 
 export const DAILY_NOTE_INPUT_ID = "cockpit-daily-note";
@@ -53,6 +54,8 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  /** 마지막 서버 동기화 실패 원인 (상태 툴팁에 표시) */
+  const [syncError, setSyncError] = useState<string | null>(null);
   /** 템플릿 적용 직전 내용 (또는 서버와 충돌해 밀려난 이 기기 내용) */
   const [undo, setUndo] = useState<NoteUndo | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -72,7 +75,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
 
   /** 서버 내용과 이 기기 draft를 맞춤. 서버를 덮어써도 안전한 경우에만 draft를 올림 */
   const reconcile = useCallback(
-    (server: { content: string | null; updated_at: string } | null) => {
+    (server: { content: string | null; updated_at: string | null } | null) => {
       const draft = readDraft(userId, date);
       const serverContent = server?.content ?? "";
       serverKnown.current = true;
@@ -97,18 +100,17 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
     [userId, date],
   );
 
+  /** 서버 조회 (레거시 스키마·세션 만료 자동 대응은 lib/dailyNotes) */
   const fetchServer = useCallback(
     () =>
-      createClient()
-        .from("daily_notes")
-        .select("content, updated_at")
-        .eq("user_id", userId)
-        .eq("date", date)
-        .maybeSingle(),
+      loadNote(createClient(), userId, date).then((r) =>
+        r.ok ? { data: r.data, error: null } : { data: null, error: r.error },
+      ),
     [userId, date],
   );
 
-  function fallBack(error: { code?: string; message: string }) {
+  function fallBack(error: DbError) {
+    setSyncError(describeNoteError(error));
     const where = !dirty.current ? "offline" : localOk.current ? "local" : "failed";
     console.warn(`[memopad] 서버 저장 실패 → ${where === "failed" ? "이 기기 보관도 실패" : "이 기기에 임시 보관"}, 자동 재시도 예정`, {
       date,
@@ -137,6 +139,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         // 서버와 일치 (올릴 변경 없음)
         if (!dirty.current || latest.current === next) {
           dirty.current = false;
+          setSyncError(null);
           setStatus("saved");
         }
         return;
@@ -145,20 +148,15 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
     }
 
     setStatus("saving");
-    const sb = createClient();
-    const { data: auth } = await sb.auth.getSession();
-    const uid = auth.session?.user.id ?? userId;
-    const { data, error } = await sb
-      .from("daily_notes")
-      .upsert({ user_id: uid, date, content: text }, { onConflict: "user_id,date" })
-      .select("updated_at")
-      .single();
-    if (error) return fallBack(error);
+    const res = await saveNote(createClient(), userId, date, text);
+    if (!res.ok) return fallBack(res.error);
     clearDraftIf(userId, date, text);
-    serverVersion.current = data.updated_at;
-    setUpdatedAt(data.updated_at);
+    serverVersion.current = res.data.updated_at;
+    // updated_at 컬럼이 없는 레거시 테이블이면 저장 시각을 표시
+    setUpdatedAt(res.data.updated_at ?? new Date().toISOString());
     bumpRev();
     // 요청 중에 더 입력했다면 아직 '저장됨'이 아님 (곧 다음 저장이 이어짐)
+    setSyncError(null);
     if (text === latest.current) {
       dirty.current = false;
       setStatus("saved");
@@ -179,6 +177,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
       if (error) {
         // 서버를 못 읽음 → 이 기기 draft로 이어 쓰고, 서버에는 확인될 때까지 쓰지 않음
         console.warn("[memopad] 불러오기 실패, 이 기기 사본 사용", { date, code: error.code, message: error.message });
+        setSyncError(describeNoteError(error));
         const draft = readDraft(userId, date);
         latest.current = draft?.content ?? "";
         dirty.current = !!draft;
@@ -425,7 +424,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
           </span>
         )}
         <span className="flex min-w-0 items-center gap-1 truncate">
-          <SaveIndicator status={status} updatedAt={updatedAt} />
+          <SaveIndicator status={status} updatedAt={updatedAt} reason={syncError} />
         </span>
         <span className="ml-auto hidden shrink-0 items-center gap-1 sm:flex">
           포커스
@@ -453,7 +452,8 @@ function TemplateButton({ onClick }: { onClick: () => void }) {
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 
 /** 저장 위치·동기화 여부를 그대로 보여 주는 상태 표시 */
-function SaveIndicator({ status, updatedAt }: { status: SaveStatus; updatedAt: string | null }) {
+function SaveIndicator({ status, updatedAt, reason }: { status: SaveStatus; updatedAt: string | null; reason?: string | null }) {
+  const why = reason ? `\n원인: ${reason}` : "";
   switch (status) {
     case "pending":
     case "saving":
@@ -467,7 +467,7 @@ function SaveIndicator({ status, updatedAt }: { status: SaveStatus; updatedAt: s
       return (
         <span
           className="flex min-w-0 items-center gap-1 text-[#b86b00]"
-          title="서버에 저장하지 못해 이 기기(브라우저)에 임시 보관했습니다. 연결되면 자동으로 서버에 동기화됩니다."
+          title={`서버에 저장하지 못해 이 기기(브라우저)에 임시 보관했습니다. 연결되면 자동으로 서버에 동기화됩니다.${why}`}
         >
           <CloudOff className="size-3 shrink-0" />
           <span className="truncate">이 기기에 임시 저장됨 · 동기화 대기</span>
@@ -475,7 +475,7 @@ function SaveIndicator({ status, updatedAt }: { status: SaveStatus; updatedAt: s
       );
     case "offline":
       return (
-        <span className="flex min-w-0 items-center gap-1 text-[#b86b00]" title="서버에서 메모를 불러오지 못했습니다. 자동으로 다시 연결합니다.">
+        <span className="flex min-w-0 items-center gap-1 text-[#b86b00]" title={`서버에서 메모를 불러오지 못했습니다. 자동으로 다시 연결합니다.${why}`}>
           <CloudOff className="size-3 shrink-0" />
           <span className="truncate">서버 연결 대기 중</span>
         </span>
@@ -484,7 +484,7 @@ function SaveIndicator({ status, updatedAt }: { status: SaveStatus; updatedAt: s
       return (
         <span
           className="flex min-w-0 items-center gap-1 font-medium text-[#c4271d]"
-          title="서버와 이 기기 모두 저장하지 못했습니다. 페이지를 닫으면 내용이 사라질 수 있으니 내용을 복사해 두세요. 자동으로 다시 시도합니다."
+          title={`서버와 이 기기 모두 저장하지 못했습니다. 페이지를 닫으면 내용이 사라질 수 있으니 내용을 복사해 두세요. 자동으로 다시 시도합니다.${why}`}
           role="alert"
         >
           <TriangleAlert className="size-3 shrink-0" />
