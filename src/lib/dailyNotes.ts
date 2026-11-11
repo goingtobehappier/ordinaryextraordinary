@@ -32,6 +32,12 @@ const schema: Schema = { table: "daily_notes", dateCol: "date", hasUpdatedAt: tr
 const triedTables = new Set<Table>();
 const triedDateCols = new Set<DateCol>();
 
+/** 실제 스키마가 처음 확인되면(첫 성공 요청) 풀림 → Realtime 구독 대상 테이블·날짜 컬럼 결정에 사용 */
+let resolveSchema: (s: { table: Table; dateCol: DateCol }) => void = () => {};
+export const noteSchemaReady = new Promise<{ table: Table; dateCol: DateCol }>((r) => {
+  resolveSchema = r;
+});
+
 export type DbError = { code?: string; message: string; details?: string | null; hint?: string | null; status?: number };
 export type NoteRow = { content: string; updated_at: string | null };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: DbError; message: string };
@@ -136,7 +142,10 @@ async function run<T>(sb: SupabaseClient, action: string, context: Record<string
     } catch (e) {
       res = { error: asDbError(e) };
     }
-    if ("data" in res) return { ok: true, data: res.data };
+    if ("data" in res) {
+      resolveSchema({ table: schema.table, dateCol: schema.dateCol });
+      return { ok: true, data: res.data };
+    }
     last = res.error;
     if (adapt(last)) continue;
     if (isAuth(last) && !refreshed) {

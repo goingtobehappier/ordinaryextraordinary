@@ -11,6 +11,8 @@ type LunchState = {
   skipped: Record<string, true>;
   loadedRange: string | null;
   load: (from: string, to: string) => Promise<string | null>;
+  /** 현재 범위를 다시 불러옴 (Realtime: 다른 기기에서 바뀐 경우) */
+  refresh: () => Promise<void>;
   /** 해당 날짜 점심시간 삭제. 실패 시 롤백하고 오류 메시지 반환 */
   skip: (date?: string | null) => Promise<string | null>;
   /** 해당 날짜 점심시간 복원 */
@@ -93,6 +95,14 @@ export const useLunch = create<LunchState>()((set, get) => ({
       return { skipped: next };
     });
     return null;
+  },
+
+  refresh: async () => {
+    const range = get().loadedRange;
+    if (!range) return;
+    const [from, to] = range.split("_");
+    set({ loadedRange: null });
+    await get().load(from, to);
   },
 
   skip: async (rawDate) => {

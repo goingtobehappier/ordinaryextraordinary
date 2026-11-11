@@ -6,6 +6,7 @@ import { CircleAlert, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isFullView, useCockpit, type ShortcutAction } from "@/store/cockpit";
 import { useHotkeys } from "@/hooks/useHotkeys";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { addDays, monthGrid, startOfWeek, todayISO } from "@/lib/date";
 import type { CockpitUser } from "@/lib/types";
 import { GlassPanel } from "@/components/ui/Glass";
@@ -199,6 +200,8 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   // 단축키 설정 중에는 녹화 입력과 충돌하지 않도록 비활성화
   useHotkeys(bindings, !shortcutsOpen && !calendarOpen);
   useDeselect();
+  // 다른 기기(PC ↔ 모바일)의 변경을 실시간 반영 (사용자당 1회 구독, 언마운트 시 해제)
+  useRealtimeSync(user.id);
 
   return (
     // 데스크톱(lg+): 한 화면 고정 2열 / 태블릿·모바일: 상하 1열로 쌓고 페이지 스크롤

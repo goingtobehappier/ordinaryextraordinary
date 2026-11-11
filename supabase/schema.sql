@@ -137,3 +137,6 @@ create policy "lunch_skips: owner only" on public.lunch_skips
   for all to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
+
+-- ─────────────────────── Realtime (PC ↔ 모바일 실시간 동기화) ───────────────────────
+-- migrations/012_realtime.sql을 실행하면 todos·todo_details·daily_notes·lunch_skips가 supabase_realtime에 등록됩니다.

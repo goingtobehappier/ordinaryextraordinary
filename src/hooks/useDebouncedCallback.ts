@@ -33,5 +33,8 @@ export function useDebouncedCallback<A extends unknown[]>(fn: (...args: A) => vo
 
   useEffect(() => flush, [flush]);
 
-  return { call, flush };
+  /** 아직 실행되지 않은 호출이 있는지 */
+  const isPending = useCallback(() => pending.current !== null, []);
+
+  return { call, flush, isPending };
 }

@@ -14,6 +14,7 @@ import { LiveNoteEditor, type LiveNoteEditorHandle } from "./LiveNoteEditor";
 import { describeNoteError, loadNote, saveNote, type DbError } from "@/lib/dailyNotes";
 import { applySyntax, NOTE_SYNTAX_HINTS, type NoteSyntax } from "@/lib/noteSyntax";
 import { clearDraft, clearDraftIf, readDraft, readUndo, writeDraft, writeUndo, type NoteUndo } from "@/lib/noteDraft";
+import { NOTE_REMOTE_EVENT, RESYNC_EVENT, type RemoteNote } from "@/hooks/useRealtimeSync";
 
 export const DAILY_NOTE_INPUT_ID = "cockpit-daily-note";
 export const FOCUS_NOTE_EVENT = "cockpit:focus-note";
@@ -246,6 +247,40 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   }, []);
 
   const saver = useDebouncedCallback((text: string) => void push(text), 700);
+  const saverPending = saver.isPending;
+
+  // Realtime: 다른 기기에서 바뀐 메모 반영. 이 기기에 아직 저장 안 된 입력이 있으면 덮어쓰지 않음
+  // (곧 이 기기 내용이 저장되며 마지막 저장이 우선)
+  useEffect(() => {
+    if (!loaded) return;
+    const apply = (remote: { content: string; updated_at: string | null }) => {
+      if (dirty.current || saverPending()) return;
+      if (remote.updated_at && remote.updated_at === serverVersion.current) return; // 이 기기 저장의 메아리
+      serverKnown.current = true;
+      serverVersion.current = remote.updated_at;
+      setUpdatedAt(remote.updated_at);
+      if (remote.content !== latest.current) {
+        latest.current = remote.content;
+        setContent(remote.content);
+      }
+    };
+    const onRemote = (e: Event) => {
+      const d = (e as CustomEvent<RemoteNote>).detail;
+      if (d.date === date) apply(d);
+    };
+    const onResync = () => {
+      if (dirty.current || saverPending()) return;
+      void fetchServer().then(({ data, error }) => {
+        if (!error && data) apply(data);
+      });
+    };
+    window.addEventListener(NOTE_REMOTE_EVENT, onRemote);
+    window.addEventListener(RESYNC_EVENT, onResync);
+    return () => {
+      window.removeEventListener(NOTE_REMOTE_EVENT, onRemote);
+      window.removeEventListener(RESYNC_EVENT, onResync);
+    };
+  }, [loaded, date, fetchServer, saverPending]);
 
   function change(text: string) {
     latest.current = text;

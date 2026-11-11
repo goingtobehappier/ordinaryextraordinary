@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Clock, Loader2, Plus, Repeat as RepeatIcon, RotateCw, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { loadTodoDetail, saveTodoDetail, type Detail } from "@/lib/todoDetails";
+import { loadTodoDetail, saveTodoDetail, toSubtasks, type Detail } from "@/lib/todoDetails";
+import { DETAIL_REMOTE_EVENT, type RemoteDetail } from "@/hooks/useRealtimeSync";
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { formatLong, isDoneOn, shortTime } from "@/lib/date";
@@ -49,6 +50,19 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
   const [tagsRaw, setTagsRaw] = useState(todo.tags.join(", "));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const loaded = loadState === "ready";
+
+  // 제목·태그가 바깥(다른 기기 Realtime 등)에서 바뀌면 입력값도 맞춤
+  const [syncedTitle, setSyncedTitle] = useState(todo.title);
+  const tagsKey = todo.tags.join(", ");
+  const [syncedTags, setSyncedTags] = useState(tagsKey);
+  if (todo.title !== syncedTitle) {
+    setSyncedTitle(todo.title);
+    setTitle(todo.title);
+  }
+  if (tagsKey !== syncedTags) {
+    setSyncedTags(tagsKey);
+    setTagsRaw(tagsKey);
+  }
 
   /** 서버에 저장이 확인된 마지막 상태 (실패 시 하위 작업 롤백 기준) */
   const confirmed = useRef<Detail>({ memo: "", subtasks: [] });
@@ -105,6 +119,28 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
   }
 
   const memoSaver = useDebouncedCallback((m: string, subs: Subtask[]) => void persist({ memo: m, subtasks: subs }), 600);
+  const memoPending = memoSaver.isPending;
+
+  // Realtime: 다른 기기에서 바뀐 메모·하위 작업 반영 (이 기기에서 저장 중·입력 대기 중이면 건너뜀)
+  useEffect(() => {
+    if (!loaded) return;
+    const onRemote = (e: Event) => {
+      const { todoId, row } = (e as CustomEvent<RemoteDetail>).detail;
+      if (todoId !== todo.id || inflight.current || memoPending()) return;
+      const next: Detail = {
+        memo: typeof row.memo === "string" ? row.memo : confirmed.current.memo,
+        subtasks:
+          "subtasks" in row || "sub_tasks" in row
+            ? toSubtasks(row.subtasks ?? row.sub_tasks)
+            : confirmed.current.subtasks,
+      };
+      confirmed.current = next;
+      setMemo(next.memo);
+      setSubtasks(next.subtasks);
+    };
+    window.addEventListener(DETAIL_REMOTE_EVENT, onRemote);
+    return () => window.removeEventListener(DETAIL_REMOTE_EVENT, onRemote);
+  }, [loaded, todo.id, memoPending]);
 
   // 낙관적 업데이트: 화면에 먼저 반영하고 즉시 저장 (실패 시 persist에서 롤백)
   function updateSubtasks(next: Subtask[]) {

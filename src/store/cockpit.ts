@@ -175,6 +175,33 @@ type CockpitState = {
   deleteTodo: (id: string) => Promise<void>;
   toggleDone: (todo: Todo, date: string) => Promise<void>;
   clearError: () => void;
+
+  /** Realtime: 다른 기기에서 추가·수정된 할 일을 반영 (로드 범위 밖이면 목록에서 제외) */
+  applyRemoteTodo: (row: Record<string, unknown>) => void;
+  /** Realtime: 다른 기기에서 삭제된 할 일을 제거 */
+  removeRemoteTodo: (id: string) => void;
+  /** 재연결·앱 복귀 시 놓친 변경을 다시 불러옴 */
+  resync: () => Promise<void>;
+};
+
+/**
+ * 이 기기에서 저장 중인 할 일 id별 요청 수.
+ * 저장 중에는 앞선 저장의 Realtime 메아리가 낙관적 상태를 되돌리지 않도록 원격 반영을 건너뜀
+ * (마지막 저장의 메아리는 요청이 끝난 뒤 도착해 최종 상태로 맞춰짐).
+ */
+const pendingWrites = new Map<string, number>();
+const beginWrite = (id: string) => pendingWrites.set(id, (pendingWrites.get(id) ?? 0) + 1);
+const endWrite = (id: string) => {
+  const n = (pendingWrites.get(id) ?? 1) - 1;
+  if (n > 0) pendingWrites.set(id, n);
+  else pendingWrites.delete(id);
+};
+
+/** 로드된 범위(loadRange 조건과 동일)에 포함되는 할 일인지 */
+const inLoadedRange = (t: Todo, loadedRange: string | null) => {
+  if (!loadedRange) return false;
+  const [start, end] = loadedRange.split("_");
+  return t.repeat === "none" ? t.date >= start && t.date <= end : t.date <= end;
 };
 
 const supabase = () => createClient();
@@ -355,7 +382,9 @@ export const useCockpit = create<CockpitState>()(
           allTags: patch.tags ? mergeTags(s.allTags, patch.tags) : s.allTags,
           recentTags: bumpRecent(s.recentTags, newlyAdded),
         }));
+        beginWrite(id);
         const { error } = await supabase().from("todos").update(patch).eq("id", id).eq("user_id", uid() ?? "");
+        endWrite(id);
         if (error) set({ todos: prev, overdue: prevOverdue, error: error.message });
         else set((s) => ({ rev: s.rev + 1 }));
       },
@@ -383,12 +412,14 @@ export const useCockpit = create<CockpitState>()(
           overdue: prevOverdue.filter((t) => t.id !== id),
           selectedTodoId: get().selectedTodoId === id ? null : get().selectedTodoId,
         });
+        beginWrite(id);
         const { data, error } = await supabase()
           .from("todos")
           .delete()
           .eq("id", id)
           .eq("user_id", uid() ?? "")
           .select("id");
+        endWrite(id);
         // RLS로 걸러지면 오류 없이 0건 삭제되므로, 실제 삭제 건수까지 확인
         if (error || !data?.length) {
           set({ todos: prev, overdue: prevOverdue, error: error?.message ?? "과업을 삭제하지 못했습니다. 다시 시도해 주세요." });
@@ -403,6 +434,50 @@ export const useCockpit = create<CockpitState>()(
       },
 
       clearError: () => set({ error: null }),
+
+      applyRemoteTodo: (row) => {
+        const todo = normalizeTodo(row);
+        if (!todo.id || todo.user_id !== uid() || pendingWrites.has(todo.id)) return;
+        set((s) => {
+          const exists = s.todos.some((t) => t.id === todo.id);
+          const todos = inLoadedRange(todo, s.loadedRange)
+            ? exists
+              ? s.todos.map((t) => (t.id === todo.id ? todo : t))
+              : [...s.todos, todo]
+            : s.todos.filter((t) => t.id !== todo.id);
+          return {
+            todos,
+            overdue: recomputeOverdue(
+              [...s.overdue.filter((t) => t.id !== todo.id), ...(isOverdue(todo) ? [todo] : [])],
+              todos,
+            ),
+            rev: s.rev + 1,
+            allTags: mergeTags(s.allTags, todo.tags),
+          };
+        });
+      },
+
+      removeRemoteTodo: (id) => {
+        // DELETE 이벤트는 user_id로 걸러지지 않으므로(기본키만 전달) 화면에 있는 항목만 처리
+        const s0 = get();
+        if (pendingWrites.has(id) || !(s0.todos.some((t) => t.id === id) || s0.overdue.some((t) => t.id === id))) return;
+        set((s) => ({
+          todos: s.todos.filter((t) => t.id !== id),
+          overdue: s.overdue.filter((t) => t.id !== id),
+          selectedTodoId: s.selectedTodoId === id ? null : s.selectedTodoId,
+          rev: s.rev + 1,
+        }));
+      },
+
+      resync: async () => {
+        const range = get().loadedRange;
+        if (range) {
+          const [start, end] = range.split("_");
+          await get().loadRange(start, end, true);
+        }
+        await get().loadOverdue();
+        set((s) => ({ rev: s.rev + 1 }));
+      },
       };
     },
     {
