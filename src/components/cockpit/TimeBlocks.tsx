@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
-import { isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
+import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { CATEGORY_STYLE, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -27,7 +27,9 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), h
 function spanOf(t: Todo): { s: number; e: number } | null {
   const s = timeToMinutes(t.start_time);
   if (s === null) return null;
-  const e = timeToMinutes(t.end_time);
+  const raw = timeToMinutes(t.end_time);
+  // 하루의 끝은 23:59로 저장되므로 24:00 구분선까지 채움
+  const e = raw !== null && raw >= DAY_END - 1 ? DAY_END : raw;
   return { s, e: e !== null && e > s ? e : Math.min(s + DEFAULT_DURATION, DAY_END) };
 }
 
@@ -251,25 +253,29 @@ export function TimeBlocks({
           if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null);
         }}
         onDrop={onDrop}
-        className={cn("relative min-h-0 flex-1 overflow-y-auto px-3 pb-3 scroll-thin", drag && "select-none")}
+        // 상하 여백: 라벨이 구분선 중앙에 걸치므로(위아래로 반 줄씩 튀어나옴) 06:00·24:00 라벨이 잘리지 않게 확보
+        className={cn("relative min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3 scroll-thin", drag && "select-none")}
       >
         <div ref={gridRef} className="relative" style={{ height: hours.length * HOUR_PX }}>
           {hours.map((h, i) => (
             <button
               key={h}
               type="button"
-              onClick={() => onPickSlot(`${String(h).padStart(2, "0")}:00`)}
+              onClick={() => onPickSlot(clockLabel(h * 60))}
               data-deselect
-              className="group absolute inset-x-0 flex items-start text-left"
+              className="group absolute inset-x-0 block text-left"
               style={{ top: i * HOUR_PX, height: HOUR_PX }}
-              title={`${h}:00에 할 일 추가`}
+              title={`${clockLabel(h * 60)}에 할 일 추가`}
             >
-              <span className="w-12 -translate-y-1.5 pr-2 text-right text-[11px] tabular-nums text-ink-2/80">
-                {String(h).padStart(2, "0")}:00
-              </span>
-              <span className="h-full flex-1 border-t border-black/[0.06] transition-colors group-hover:bg-apple-blue/[0.04]" />
+              <HourLabel minutes={h * 60} />
+              <span className="absolute inset-y-0 left-12 right-0 border-t border-black/[0.06] transition-colors group-hover:bg-apple-blue/[0.04]" />
             </button>
           ))}
+          {/* 마지막 경계: 24:00 구분선 + 라벨 */}
+          <div className="pointer-events-none absolute inset-x-0" style={{ top: hours.length * HOUR_PX }} aria-hidden>
+            <HourLabel minutes={DAY_END} />
+            <span className="absolute left-12 right-0 top-0 border-t border-black/[0.06]" />
+          </div>
 
           <div className="pointer-events-none absolute bottom-0 left-12 right-1 top-0">
             {/* 점심시간 (매일 기본 블록) */}
@@ -285,7 +291,7 @@ export function TimeBlocks({
               <Utensils className="mt-px size-3 shrink-0" />
               <span className="shrink-0">{LUNCH.label}</span>
               <span className="truncate tabular-nums opacity-70">
-                {minutesToTime(LUNCH.start)}–{minutesToTime(LUNCH.end)}
+                {clockLabel(LUNCH.start)}–{clockLabel(LUNCH.end)}
               </span>
             </div>
 
@@ -295,7 +301,7 @@ export function TimeBlocks({
                 className="absolute inset-x-0 z-20 rounded-lg border-2 border-dashed border-apple-blue/60 bg-apple-blue/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-apple-blue"
                 style={{ top: minToPx(dropAt), height: (DEFAULT_DURATION / 60) * HOUR_PX }}
               >
-                {minutesToTime(dropAt)}–{minutesToTime(dropAt + DEFAULT_DURATION)}
+                {clockLabel(dropAt)}–{clockLabel(dropAt + DEFAULT_DURATION)}
               </div>
             )}
 
@@ -309,7 +315,7 @@ export function TimeBlocks({
                   key={b.todo.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${b.todo.title} ${minutesToTime(b.s)}–${minutesToTime(b.e)} · 드래그로 이동, 가장자리로 길이 조절`}
+                  aria-label={`${b.todo.title} ${clockLabel(b.s)}–${clockLabel(b.e)} · 드래그로 이동, 가장자리로 길이 조절`}
                   onPointerDown={(e) => onBlockPointerDown(e, b)}
                   onPointerMove={onBlockPointerMove}
                   onPointerUp={onBlockPointerUp}
@@ -364,7 +370,7 @@ export function TimeBlocks({
                   </div>
                   {height > 34 && (
                     <div className="truncate text-[11px] tabular-nums opacity-80">
-                      {minutesToTime(b.s)}–{minutesToTime(b.e)}
+                      {clockLabel(b.s)}–{clockLabel(b.e)}
                       {active && ` · ${b.e - b.s}분`}
                     </div>
                   )}
@@ -386,5 +392,14 @@ export function TimeBlocks({
       </div>
       <ConfirmDeleteDialog todo={pendingDelete} onClose={() => setPendingDelete(null)} />
     </div>
+  );
+}
+
+/** 시간 라벨: 부모 상단(= 해당 시각 구분선)에 텍스트 수직 중앙을 맞춤 */
+function HourLabel({ minutes }: { minutes: number }) {
+  return (
+    <span className="absolute left-0 top-0 w-12 -translate-y-1/2 pr-2 text-right text-[11px] leading-none tabular-nums text-ink-2/80">
+      {clockLabel(minutes)}
+    </span>
   );
 }

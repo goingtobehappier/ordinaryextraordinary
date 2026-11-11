@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
-import { isDoneOn, occursOn, shortTime, timeToMinutes, toISODate } from "@/lib/date";
+import { isDoneOn, occursOn, shortTime, timeToMinutes, toISODate, endTimeLabel } from "@/lib/date";
 import { CATEGORY_STYLE, normalizeTodo, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { CategoryBadge } from "@/components/ui/Glass";
@@ -240,7 +240,7 @@ export function TaskReminders({ userId }: { userId: string }) {
                   <p className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-ink">{todo.title}</p>
                   <p className="mt-0.5 text-xs tabular-nums text-ink-2">
                     {shortTime(todo.start_time)}
-                    {todo.end_time && ` – ${shortTime(todo.end_time)}`}
+                    {todo.end_time && ` – ${endTimeLabel(todo.end_time)}`}
                   </p>
                 </div>
                 <button

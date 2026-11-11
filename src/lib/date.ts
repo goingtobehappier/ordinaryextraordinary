@@ -83,6 +83,20 @@ export function minutesToTime(m: number): string {
   return `${String(Math.floor(v / 60)).padStart(2, "0")}:${String(v % 60).padStart(2, "0")}`;
 }
 
+/** 하루의 끝은 DB에 23:59로 저장(time 입력이 24:00을 표시하지 못함)하지만 화면에는 24:00으로 */
+const DAY_END_STORED = 23 * 60 + 59;
+
+/** 표시용 HH:MM (24시 기준). 하루의 끝(23:59 이상)은 24:00 */
+export function clockLabel(m: number): string {
+  return m >= DAY_END_STORED ? "24:00" : minutesToTime(m);
+}
+
+/** 표시용 종료 시각. 저장값 23:59 → 24:00 */
+export function endTimeLabel(t: string | null): string {
+  const m = timeToMinutes(t);
+  return m === null ? "" : clockLabel(m);
+}
+
 /** 월 달력 그리드 (월요일 시작, 6주 = 42일) */
 export function monthGrid(iso: string): string[] {
   const d = parseISODate(iso);

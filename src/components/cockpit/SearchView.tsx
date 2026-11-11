@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Loader2, Repeat as RepeatIcon, Search, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
-import { WEEKDAY_KO, isDoneOn, shortTime, timeToMinutes, weekdayIndex } from "@/lib/date";
+import { WEEKDAY_KO, isDoneOn, shortTime, timeToMinutes, weekdayIndex, endTimeLabel } from "@/lib/date";
 import { searchFilter } from "@/lib/search";
 import { REPEAT_LABEL, normalizeTodo, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -217,7 +217,7 @@ export function SearchView() {
                         )}
                       </span>
                       <span className="hidden whitespace-nowrap tabular-nums text-ink-2 md:block print:block">
-                        {t.start_time ? `${shortTime(t.start_time)}${t.end_time ? `–${shortTime(t.end_time)}` : ""}` : "—"}
+                        {t.start_time ? `${shortTime(t.start_time)}${t.end_time ? `–${endTimeLabel(t.end_time)}` : ""}` : "—"}
                       </span>
                       <span className={cn("truncate font-medium", done && "text-ink-2 line-through")}>
                         <Highlight text={t.title} term={term} />

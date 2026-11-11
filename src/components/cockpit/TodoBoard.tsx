@@ -23,6 +23,7 @@ import {
   shortTime,
   timeToMinutes,
   todayISO,
+  endTimeLabel,
 } from "@/lib/date";
 import { startTodoDrag } from "@/lib/dnd";
 import {
@@ -479,7 +480,7 @@ export function TodoList({
                     <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-medium tabular-nums text-ink">
                       <Clock className="size-3 shrink-0" />
                       {shortTime(t.start_time)}
-                      {t.end_time && `–${shortTime(t.end_time)}`}
+                      {t.end_time && `–${endTimeLabel(t.end_time)}`}
                     </span>
                   ) : (
                     <span className="min-w-0 truncate">

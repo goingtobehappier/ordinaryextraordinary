@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
-import { shortTime } from "@/lib/date";
+import { shortTime, endTimeLabel } from "@/lib/date";
 import { REPEAT_LABEL, type Todo } from "@/lib/types";
 import { CategoryBadge, GlassButton } from "@/components/ui/Glass";
 
@@ -79,7 +79,7 @@ export function ConfirmDeleteDialog({ todo, onClose }: { todo: Todo | null; onCl
               {todo.start_time && (
                 <span className="ml-auto shrink-0 text-xs tabular-nums text-ink-2">
                   {shortTime(todo.start_time)}
-                  {todo.end_time && `–${shortTime(todo.end_time)}`}
+                  {todo.end_time && `–${endTimeLabel(todo.end_time)}`}
                 </span>
               )}
             </div>
