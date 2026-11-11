@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Code2, Columns2, Eye, Loader2, NotebookPen, PencilLine } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CloudOff, Code2, Columns2, Eye, LayoutTemplate, Loader2, NotebookPen, PencilLine, Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { GlassPanel, Kbd } from "@/components/ui/Glass";
 import { Markdown } from "./Markdown";
 import { LiveNoteEditor, type LiveNoteEditorHandle } from "./LiveNoteEditor";
+import { clearDraft, clearDraftIf, readDraft, readUndo, writeDraft, writeUndo, type NoteUndo } from "@/lib/noteDraft";
 
 export const DAILY_NOTE_INPUT_ID = "cockpit-daily-note";
 export const FOCUS_NOTE_EVENT = "cockpit:focus-note";
@@ -32,36 +33,157 @@ export function DailyNote({ userId, className }: { userId: string; className?: s
   return <NoteBody key={selectedDate} date={selectedDate} userId={userId} className={className} />;
 }
 
+type SaveStatus = "idle" | "saving" | "saved" | "local";
+
+/** 서버 저장 실패 시 재시도 간격 */
+const RETRY_MS = 20_000;
+
 function NoteBody({ date, userId, className }: { date: string; userId: string; className?: string }) {
   const combo = useCockpit((s) => s.shortcuts.focusNote);
   const bumpRev = useCockpit((s) => s.bumpRev);
   const [mode, setMode] = useState<Mode>("live");
   const [content, setContent] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [status, setStatus] = useState<SaveStatus>("idle");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  /** 템플릿 적용 직전 내용 (또는 서버와 충돌해 밀려난 이 기기 내용) */
+  const [undo, setUndo] = useState<NoteUndo | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const liveRef = useRef<LiveNoteEditorHandle>(null);
+  /** 서버의 현재 버전을 알고 있는지. 모르면(불러오기 실패) 서버에 쓰지 않고 이 기기에만 저장 */
+  const serverKnown = useRef(false);
+  /** 마지막으로 확인한 서버 버전 (draft.base와 비교해 덮어쓰기 충돌 판단) */
+  const serverVersion = useRef<string | null>(null);
+  const latest = useRef("");
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 언마운트 후에는 재시도를 예약하지 않음 (draft는 남아 다음에 이 날짜를 열 때 동기화) */
+  const mounted = useRef(true);
+
+  /** 서버 내용과 이 기기 draft를 맞춤. 서버를 덮어써도 안전한 경우에만 draft를 올림 */
+  const reconcile = useCallback(
+    (server: { content: string | null; updated_at: string } | null) => {
+      const draft = readDraft(userId, date);
+      const serverContent = server?.content ?? "";
+      serverKnown.current = true;
+      serverVersion.current = server?.updated_at ?? null;
+      setUpdatedAt(server?.updated_at ?? null);
+
+      if (!draft || draft.content === serverContent) {
+        if (draft) clearDraft(userId, date);
+        return { content: serverContent, push: false };
+      }
+      // draft가 지금 서버 버전을 기반으로 했거나, 서버가 비어 있으면 draft가 최신
+      if (!serverContent.trim() || draft.base === (server?.updated_at ?? null)) {
+        return { content: draft.content, push: true };
+      }
+      // 다른 곳에서 서버가 바뀜 → 서버 내용을 쓰고, 이 기기 내용은 되돌리기로 보관 (유실 없음)
+      const conflict: NoteUndo = { content: draft.content, reason: "conflict", at: Date.now() };
+      writeUndo(userId, date, conflict);
+      setUndo(conflict);
+      clearDraft(userId, date);
+      return { content: serverContent, push: false };
+    },
+    [userId, date],
+  );
+
+  const fetchServer = useCallback(
+    () =>
+      createClient()
+        .from("daily_notes")
+        .select("content, updated_at")
+        .eq("user_id", userId)
+        .eq("date", date)
+        .maybeSingle(),
+    [userId, date],
+  );
+
+  function fallBack(error: { code?: string; message: string }) {
+    console.warn("[memopad] 서버 저장 실패 → 이 기기에 저장, 자동 재시도 예정", { date, code: error.code, message: error.message });
+    setStatus("local");
+    if (mounted.current) retryTimer.current = setTimeout(() => void pushRef.current(latest.current), RETRY_MS);
+  }
+
+  /** 서버 저장. 실패하면 이 기기에 저장하고 잠시 뒤 자동 재시도 (저장 실패 대신 '이 기기에 저장됨') */
+  async function push(text: string) {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    writeDraft(userId, date, text, serverVersion.current);
+
+    if (!serverKnown.current) {
+      // 서버 버전을 아직 모름 → 다시 불러와 맞춘 뒤 저장
+      const { data, error } = await fetchServer();
+      if (error) return fallBack(error);
+      const { content: next, push: needPush } = reconcile(data);
+      if (next !== latest.current) {
+        latest.current = next;
+        setContent(next);
+      }
+      if (!needPush) {
+        setStatus("saved");
+        return;
+      }
+      text = next;
+    }
+
+    setStatus("saving");
+    const sb = createClient();
+    const { data: auth } = await sb.auth.getSession();
+    const uid = auth.session?.user.id ?? userId;
+    const { data, error } = await sb
+      .from("daily_notes")
+      .upsert({ user_id: uid, date, content: text }, { onConflict: "user_id,date" })
+      .select("updated_at")
+      .single();
+    if (error) return fallBack(error);
+    clearDraftIf(userId, date, text);
+    serverVersion.current = data.updated_at;
+    setUpdatedAt(data.updated_at);
+    setStatus("saved");
+    bumpRev();
+  }
+  const pushRef = useRef(push);
+  useEffect(() => {
+    pushRef.current = push;
+  });
 
   useEffect(() => {
     let cancelled = false;
-    createClient()
-      .from("daily_notes")
-      .select("content, updated_at")
-      .eq("user_id", userId)
-      .eq("date", date)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) setStatus("error");
-        setContent(data?.content ?? "");
-        setUpdatedAt(data?.updated_at ?? null);
+    void fetchServer().then(({ data, error }) => {
+      if (cancelled) return;
+      setUndo(readUndo(userId, date));
+      if (error) {
+        // 서버를 못 읽음 → 이 기기 draft로 이어 쓰고, 서버에는 확인될 때까지 쓰지 않음
+        console.warn("[memopad] 불러오기 실패, 이 기기 사본 사용", { date, code: error.code, message: error.message });
+        latest.current = readDraft(userId, date)?.content ?? "";
+        setContent(latest.current);
+        setStatus("local");
         setLoaded(true);
-      });
+        retryTimer.current = setTimeout(() => void pushRef.current(latest.current), RETRY_MS);
+        return;
+      }
+      const { content: next, push: needPush } = reconcile(data);
+      latest.current = next;
+      setContent(next);
+      setLoaded(true);
+      if (needPush) void pushRef.current(next);
+    });
     return () => {
       cancelled = true;
     };
-  }, [date, userId]);
+  }, [date, userId, fetchServer, reconcile]);
+
+  // 네트워크가 돌아오면 바로 재시도, 언마운트 시 타이머 정리
+  useEffect(() => {
+    const onOnline = () => {
+      if (readDraft(userId, date)) void pushRef.current(latest.current);
+    };
+    mounted.current = true;
+    window.addEventListener("online", onOnline);
+    return () => {
+      mounted.current = false;
+      window.removeEventListener("online", onOnline);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
+  }, [userId, date]);
 
   // Alt+M: 미리보기 모드면 서식 편집으로 전환 후 마지막 줄 끝에 포커스
   useEffect(() => {
@@ -76,27 +198,17 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
     return () => window.removeEventListener(FOCUS_NOTE_EVENT, onFocus);
   }, []);
 
-  const saver = useDebouncedCallback(async (text: string) => {
-    setStatus("saving");
-    const { data, error } = await createClient()
-      .from("daily_notes")
-      .upsert({ user_id: userId, date, content: text }, { onConflict: "user_id,date" })
-      .select("updated_at")
-      .single();
-    setStatus(error ? "error" : "saved");
-    if (!error) bumpRev();
-    if (data) setUpdatedAt(data.updated_at);
-  }, 700);
+  const saver = useDebouncedCallback((text: string) => void push(text), 700);
 
   function change(text: string) {
+    latest.current = text;
     setContent(text);
+    // 입력 즉시 이 기기에 보관 → 탭이 닫히거나 저장 전 오류가 나도 유실 없음
+    writeDraft(userId, date, text, serverVersion.current);
     saver.call(text);
   }
 
-  /** 템플릿 삽입 후 첫 항목(주요사항)에 바로 입력할 수 있게 포커스 */
-  function insertTemplate(target: "live" | "write") {
-    change(TEMPLATE);
-    saver.flush();
+  function focusAfterTemplate(target: Mode) {
     requestAnimationFrame(() => {
       if (target === "live") {
         document.querySelector<HTMLTextAreaElement>(`[data-note-live] textarea[aria-label="목록 항목"]`)?.focus();
@@ -104,6 +216,30 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         taRef.current?.focus();
       }
     });
+  }
+
+  /** 템플릿 적용: 작성 중이던 내용이 있으면 되돌리기용으로 백업 후 교체 */
+  function applyTemplate() {
+    if (!loaded || content === TEMPLATE) return;
+    if (content.trim()) {
+      const backup: NoteUndo = { content, reason: "template", at: Date.now() };
+      writeUndo(userId, date, backup);
+      setUndo(backup);
+    }
+    const target = mode === "preview" ? "live" : mode;
+    if (target !== mode) setMode(target);
+    change(TEMPLATE);
+    saver.flush();
+    focusAfterTemplate(target);
+  }
+
+  /** 백업한 내용으로 되돌림 */
+  function restoreUndo() {
+    if (!undo) return;
+    writeUndo(userId, date, null);
+    setUndo(null);
+    change(undo.content);
+    saver.flush();
   }
 
   function toggleTask(lineIndex: number) {
@@ -159,6 +295,25 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
           <h2 className="truncate text-[15px] font-semibold">Daily Memopad</h2>
           <p className="truncate text-xs text-ink-2">{formatLong(date)}</p>
         </div>
+        {undo && (
+          <button
+            onClick={restoreUndo}
+            className="flex shrink-0 items-center gap-1 rounded-lg bg-apple-blue/10 px-2 py-1.5 text-xs font-medium text-apple-blue transition-colors hover:bg-apple-blue/15"
+            title={undo.reason === "template" ? "템플릿 적용 전 내용으로 되돌리기" : "다른 곳의 변경에 밀려난 이 기기 작성 내용으로 되돌리기"}
+          >
+            <Undo2 className="size-3.5" />
+            <span className="hidden sm:inline">{undo.reason === "template" ? "템플릿 원복" : "이 기기 내용 복구"}</span>
+          </button>
+        )}
+        <button
+          onClick={applyTemplate}
+          disabled={!loaded}
+          className="shrink-0 rounded-lg p-1.5 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink disabled:opacity-40"
+          title="주요사항 · 회고 템플릿 적용 (작성 중인 내용은 원복 가능)"
+          aria-label="템플릿 적용"
+        >
+          <LayoutTemplate className="size-4" />
+        </button>
         <div className="flex shrink-0 rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">
           {(
             [
@@ -190,7 +345,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         {mode === "live" && (
           <div className="relative min-h-0">
             <LiveNoteEditor ref={liveRef} value={content} onChange={change} onBlur={saver.flush} disabled={!loaded} />
-            {loaded && !content && <TemplateButton onClick={() => insertTemplate("live")} />}
+            {loaded && !content && <TemplateButton onClick={applyTemplate} />}
           </div>
         )}
         {(mode === "write" || mode === "split") && (
@@ -207,7 +362,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
               placeholder={loaded ? "오늘의 기록을 마크다운으로 남겨보세요…" : "불러오는 중…"}
               className="h-full w-full resize-none break-keep bg-transparent px-4 py-4 font-sans text-[14px] leading-[1.7] outline-none placeholder:text-ink-2/70 sm:px-5 scroll-thin"
             />
-            {loaded && !content && <TemplateButton onClick={() => insertTemplate("write")} />}
+            {loaded && !content && <TemplateButton onClick={applyTemplate} />}
           </div>
         )}
         {(mode === "split" || mode === "preview") && (
@@ -232,8 +387,13 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
           {status === "saving" && <Loader2 className="size-3 shrink-0 animate-spin" />}
           {status === "saving"
             ? "저장 중…"
-            : status === "error"
-              ? <span className="text-[#c4271d]">저장 실패</span>
+            : status === "local"
+              ? (
+                  <span className="flex items-center gap-1" title="서버에 연결되지 않아 이 기기에 저장했습니다. 연결되면 자동으로 동기화됩니다.">
+                    <CloudOff className="size-3 shrink-0" />
+                    이 기기에 저장됨 · 자동 동기화 대기
+                  </span>
+                )
               : updatedAt
                 ? `저장됨 ${new Date(updatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`
                 : ""}
