@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trash2, Utensils } from "lucide-react";
+import { ArrowDown, Trash2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
@@ -18,6 +18,31 @@ const EDGE_PX = 7; // 위/아래 가장자리 리사이즈 영역
 
 /** 매일 기본 표시되는 점심시간 */
 export const LUNCH = { start: 11 * 60 + 30, end: 13 * 60, label: "점심시간" };
+
+export type LunchSlot = { s: number; e: number; shift: number; conflict: boolean };
+
+/**
+ * 점심시간 자동 밀림: 기본 위치에서 겹치는 업무 블록이 있으면 그 블록이 끝나는 시점으로 밀고,
+ * 밀린 자리에서 또 겹치면 다시 밀기를 반복해 첫 빈 구간에 배치 (길이는 유지).
+ * 하루 안에 빈 구간이 없으면 기본 위치에 두고 conflict 표시.
+ * 저장된 할 일 시간만으로 계산되는 파생 값이라 DB·상태와 항상 일치함.
+ */
+export function placeLunch(spans: { s: number; e: number }[]): LunchSlot {
+  const dur = LUNCH.end - LUNCH.start;
+  const sorted = spans.filter((b) => b.e > b.s).sort((a, b) => a.s - b.s);
+  let s = LUNCH.start;
+  for (let moved = true; moved; ) {
+    moved = false;
+    for (const b of sorted) {
+      if (b.s < s + dur && b.e > s) {
+        s = b.e;
+        moved = true;
+      }
+    }
+    if (s + dur > DAY_END) return { s: LUNCH.start, e: LUNCH.end, shift: 0, conflict: true };
+  }
+  return { s, e: s + dur, shift: s - LUNCH.start, conflict: false };
+}
 
 const minToPx = (m: number) => ((m - DAY_START) / 60) * HOUR_PX;
 const snap = (m: number) => Math.round(m / SNAP) * SNAP;
@@ -76,10 +101,13 @@ type DragState = {
 
 export function TimeBlocks({
   todos,
+  occupied = todos,
   date,
   onPickSlot,
 }: {
   todos: Todo[];
+  /** 점심시간 충돌 판단 기준 (필터와 무관한 그날의 전체 할 일) */
+  occupied?: Todo[];
   date: string;
   onPickSlot: (start: string) => void;
 }) {
@@ -113,6 +141,17 @@ export function TimeBlocks({
     });
     return layoutBlocks(items);
   }, [todos, drag]);
+
+  // 드래그·드롭 미리보기 위치까지 반영해 점심시간이 실시간으로 밀리도록
+  const lunch = useMemo(() => {
+    const spans = occupied.flatMap((t) => {
+      if (drag && drag.id === t.id) return [{ s: drag.s, e: drag.e }];
+      const span = spanOf(t);
+      return span ? [span] : [];
+    });
+    if (dropAt !== null) spans.push({ s: dropAt, e: dropAt + DEFAULT_DURATION });
+    return placeLunch(spans);
+  }, [occupied, drag, dropAt]);
 
   const isToday = date === todayISO();
   const totalMinutes = blocks.reduce((sum, b) => sum + (b.e - b.s), 0);
@@ -278,21 +317,40 @@ export function TimeBlocks({
           </div>
 
           <div className="pointer-events-none absolute bottom-0 left-12 right-1 top-0">
-            {/* 점심시간 (매일 기본 블록) */}
+            {/* 점심시간 (매일 기본 블록) — 업무 블록과 겹치면 자동으로 뒤로 밀림. transform으로 부드럽게 이동 */}
             <div
-              className="absolute inset-x-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed border-[#ff9500]/40 px-2.5 py-1.5 text-[11px] font-medium text-[#b86b00]"
+              className={cn(
+                "absolute inset-x-0 top-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed px-2.5 py-1.5 text-[11px] font-medium",
+                "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform motion-reduce:transition-none",
+                lunch.conflict ? "border-[#ff3b30]/40 text-[#c4271d]" : "border-[#ff9500]/40 text-[#b86b00]",
+              )}
               style={{
-                top: minToPx(LUNCH.start),
-                height: minToPx(LUNCH.end) - minToPx(LUNCH.start),
-                backgroundImage:
-                  "repeating-linear-gradient(135deg, rgb(255 149 0 / 0.08) 0 8px, rgb(255 149 0 / 0.03) 8px 16px)",
+                transform: `translateY(${minToPx(lunch.s)}px)`,
+                height: minToPx(lunch.e) - minToPx(lunch.s),
+                backgroundImage: lunch.conflict
+                  ? "repeating-linear-gradient(135deg, rgb(255 59 48 / 0.08) 0 8px, rgb(255 59 48 / 0.03) 8px 16px)"
+                  : "repeating-linear-gradient(135deg, rgb(255 149 0 / 0.08) 0 8px, rgb(255 149 0 / 0.03) 8px 16px)",
               }}
+              title={
+                lunch.conflict
+                  ? "남은 시간에 점심시간을 둘 빈 구간이 없습니다"
+                  : lunch.shift > 0
+                    ? `업무 일정과 겹쳐 ${formatShift(lunch.shift)} 뒤로 밀렸습니다 (기본 ${clockLabel(LUNCH.start)}–${clockLabel(LUNCH.end)})`
+                    : undefined
+              }
             >
               <Utensils className="mt-px size-3 shrink-0" />
               <span className="shrink-0">{LUNCH.label}</span>
-              <span className="truncate tabular-nums opacity-70">
-                {clockLabel(LUNCH.start)}–{clockLabel(LUNCH.end)}
+              <span className="shrink-0 tabular-nums opacity-70">
+                {clockLabel(lunch.s)}–{clockLabel(lunch.e)}
               </span>
+              {lunch.shift > 0 && (
+                <span className="flex min-w-0 items-center gap-0.5 truncate rounded bg-[#ff9500]/15 px-1 tabular-nums">
+                  <ArrowDown className="size-2.5 shrink-0" />
+                  {formatShift(lunch.shift)}
+                </span>
+              )}
+              {lunch.conflict && <span className="truncate opacity-80">· 빈 시간 없음</span>}
             </div>
 
             {/* 드롭 미리보기 */}
@@ -393,6 +451,13 @@ export function TimeBlocks({
       <ConfirmDeleteDialog todo={pendingDelete} onClose={() => setPendingDelete(null)} />
     </div>
   );
+}
+
+/** 90 → "1시간 30분", 45 → "45분" */
+function formatShift(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return [h && `${h}시간`, m && `${m}분`].filter(Boolean).join(" ");
 }
 
 /** 시간 라벨: 부모 상단(= 해당 시각 구분선)에 텍스트 수직 중앙을 맞춤 */

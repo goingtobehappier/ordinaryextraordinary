@@ -177,6 +177,7 @@ export function TodoBoard() {
         <TodoList todos={visible} date={selectedDate} emptyFiltered={dayTodos.length > 0} />
         <TimeBlocks
           todos={visible}
+          occupied={dayTodos}
           date={selectedDate}
           onPickSlot={(start) => setPrefillStart({ start, nonce: Date.now() })}
         />
