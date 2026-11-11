@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCalendar } from "@/store/calendar";
 import { CalendarDays, CalendarPlus, CalendarRange, Keyboard, List, ListTree, Loader2, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { removePushSubscription } from "@/lib/pushSubscription";
 import { useCockpit, type ViewMode } from "@/store/cockpit";
 import { cn } from "@/lib/cn";
 import { formatCombo } from "@/hooks/useHotkeys";
@@ -24,6 +25,8 @@ export function Header({ user }: { user: CockpitUser }) {
 
   async function signOut() {
     setSigningOut(true);
+    // 로그아웃한 기기로는 업무 알림이 가지 않도록 (세션이 살아 있을 때 해제)
+    await removePushSubscription();
     await createClient().auth.signOut();
     router.replace("/login");
     router.refresh();

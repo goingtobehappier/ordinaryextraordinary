@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Supabase Edge Functions는 Deno 런타임 (deno check로 별도 검사)
+    "supabase/functions/**",
   ]),
 ]);
 

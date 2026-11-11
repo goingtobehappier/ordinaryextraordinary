@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { CategoryBadge } from "@/components/ui/Glass";
 import { useAlarm } from "@/store/alarm";
 import { installAudioUnlock, playChime, showSystemNotification } from "@/lib/alarm";
+import { removePushSubscription, syncPushSubscription } from "@/lib/pushSubscription";
 
 /** 시작 몇 분 전부터 알릴지 */
 const LEAD_MIN = 5;
@@ -120,7 +121,8 @@ function fireAlarms(userId: string, date: string, nowMin: number, list: Todo[]) 
     const time = `${shortTime(todo.start_time)}${todo.end_time ? ` – ${endTimeLabel(todo.end_time)}` : ""}`;
     void showSystemNotification(
       phase === "start" ? `업무 시작 시간입니다: ${todo.title}` : `${start - nowMin}분 후 업무 시작: ${todo.title}`,
-      { body: time, tag: reminderKey(todo, date) },
+      // 서버 푸시(send-alarms)와 같은 tag → 둘 다 도착해도 알림 하나로 합쳐짐. 미리/정각은 별도 알림
+      { body: time, tag: `${reminderKey(todo, date)}|${phase}` },
     );
   }
 }
@@ -211,6 +213,13 @@ export function TaskReminders({ userId }: { userId: string }) {
 
   // 브라우저 자동재생 정책: 첫 클릭·키 입력 때 알람음 잠금 해제
   useEffect(() => installAudioUnlock(), []);
+
+  // 백그라운드 알림(Web Push): 알림이 켜져 있으면 이 기기 구독을 서버와 맞춤, 꺼지면 해제
+  const alarmEnabled = useAlarm((s) => s.enabled);
+  useEffect(() => {
+    if (alarmEnabled) void syncPushSubscription();
+    else void removePushSubscription();
+  }, [alarmEnabled, userId]);
 
   // 주기적으로 시각 확인 + 탭으로 돌아왔을 때 즉시 확인
   useEffect(() => {

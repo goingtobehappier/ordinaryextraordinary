@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff, BellRing } from "lucide-react";
 import { useAlarm } from "@/store/alarm";
 import { notifyPermission, playChime, requestNotifyPermission, showSystemNotification, type NotifyPermission } from "@/lib/alarm";
+import { syncPushSubscription } from "@/lib/pushSubscription";
 import { cn } from "@/lib/cn";
 
 /**
@@ -37,9 +38,11 @@ export function AlarmToggle() {
     setPerm(p);
     if (p === "granted") {
       void showSystemNotification("타임테이블 알림이 켜졌습니다", {
-        body: "업무 시작 5분 전과 시작 시각에 알려 드립니다.",
+        body: "업무 시작 5분 전과 시작 시각에 알려 드립니다. 탭을 닫아도 알림이 옵니다.",
         tag: "alarm-enabled",
       });
+      // 권한을 방금 받은 경우 → 백그라운드 알림(Web Push) 구독 등록
+      void syncPushSubscription();
     }
   }
 
@@ -56,7 +59,7 @@ export function AlarmToggle() {
         ? "알림 켜짐 (알람음 · 화면 알림만) · 시스템 알림이 차단되어 있어 브라우저 사이트 설정에서 허용해 주세요. 클릭하면 끄기"
         : perm === "unsupported"
           ? "알림 켜짐 (알람음 · 화면 알림만) · 이 브라우저는 시스템 알림을 지원하지 않습니다. iPhone은 홈 화면에 추가한 앱에서 지원. 클릭하면 끄기"
-          : "알림 켜짐 · 업무 시작 5분 전 · 정각에 알람음과 시스템 알림. 클릭하면 끄기";
+          : "알림 켜짐 · 업무 시작 5분 전 · 정각에 시스템 알림(탭을 닫아도 도착)과 알람음. 클릭하면 끄기";
 
   return (
     <button
