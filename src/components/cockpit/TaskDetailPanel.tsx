@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, ChevronDown, Clock, Loader2, Plus, Repeat as RepeatIcon, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, Clock, Loader2, Plus, Repeat as RepeatIcon, RotateCw, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { loadTodoDetail, saveTodoDetail, type Detail } from "@/lib/todoDetails";
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { formatLong, isDoneOn, shortTime } from "@/lib/date";
@@ -36,7 +37,10 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
   const toggleDone = useCockpit((s) => s.toggleDone);
   const closeCombo = useCockpit((s) => s.shortcuts.closeDetail);
 
-  const [loaded, setLoaded] = useState(false);
+  const setError = useCockpit((s) => s.setError);
+
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [reloadKey, setReloadKey] = useState(0);
   const [memo, setMemo] = useState("");
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSub, setNewSub] = useState("");
@@ -44,41 +48,75 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
   const [title, setTitle] = useState(todo.title);
   const [tagsRaw, setTagsRaw] = useState(todo.tags.join(", "));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const loaded = loadState === "ready";
+
+  /** 서버에 저장이 확인된 마지막 상태 (실패 시 하위 작업 롤백 기준) */
+  const confirmed = useRef<Detail>({ memo: "", subtasks: [] });
+  /** 저장 직렬화: 진행 중인 요청이 있으면 최신 값만 대기열에 두고 끝난 뒤 이어서 저장 */
+  const inflight = useRef(false);
+  const queued = useRef<Detail | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    createClient()
-      .from("todo_details")
-      .select("memo, subtasks")
-      .eq("todo_id", todo.id)
-      .eq("user_id", userId ?? "")
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) setSave("error");
-        setMemo(data?.memo ?? "");
-        setSubtasks((data?.subtasks as Subtask[] | undefined) ?? []);
-        setLoaded(true);
-      });
+    void loadTodoDetail(createClient(), todo.id).then((res) => {
+      if (cancelled) return;
+      if (!res.ok) {
+        // 불러오지 못한 상태로 편집하면 기존 하위 작업을 빈 목록으로 덮어쓰므로 편집을 막음
+        setLoadState("error");
+        setError(`상세를 불러오지 못했습니다: ${res.message}`);
+        return;
+      }
+      confirmed.current = res.data;
+      setMemo(res.data.memo);
+      setSubtasks(res.data.subtasks);
+      setLoadState("ready");
+    });
     return () => {
       cancelled = true;
     };
-  }, [todo.id, userId]);
+  }, [todo.id, reloadKey, setError]);
 
-  async function persist(next: { memo: string; subtasks: Subtask[] }) {
+  async function persist(next: Detail) {
+    if (inflight.current) {
+      queued.current = next;
+      return;
+    }
+    inflight.current = true;
     setSave("saving");
-    const { error } = await createClient()
-      .from("todo_details")
-      .upsert({ todo_id: todo.id, user_id: userId, ...next }, { onConflict: "todo_id" });
-    setSave(error ? "error" : "saved");
-    if (!error) bumpRev();
+    let current: Detail | null = next;
+    while (current) {
+      queued.current = null;
+      const res = await saveTodoDetail(createClient(), todo.id, current, userId);
+      if (!res.ok) {
+        // 하위 작업은 서버 기준으로 롤백, 메모는 입력 중인 내용을 지키고 재시도 버튼 제공
+        queued.current = null;
+        setSubtasks(confirmed.current.subtasks);
+        setSave("error");
+        setError(`하위 작업·메모 저장 실패: ${res.message}`);
+        inflight.current = false;
+        return;
+      }
+      confirmed.current = current;
+      current = queued.current;
+    }
+    inflight.current = false;
+    setSave("saved");
+    bumpRev();
   }
 
-  const memoSaver = useDebouncedCallback((m: string, subs: Subtask[]) => persist({ memo: m, subtasks: subs }), 600);
+  const memoSaver = useDebouncedCallback((m: string, subs: Subtask[]) => void persist({ memo: m, subtasks: subs }), 600);
 
+  // 낙관적 업데이트: 화면에 먼저 반영하고 즉시 저장 (실패 시 persist에서 롤백)
   function updateSubtasks(next: Subtask[]) {
+    if (!loaded) return;
     setSubtasks(next);
     memoSaver.call(memo, next);
+    memoSaver.flush();
+  }
+
+  function retrySave() {
+    setError(null);
+    memoSaver.call(memo, subtasks);
     memoSaver.flush();
   }
 
@@ -151,7 +189,19 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
           maxLength={300}
           aria-label="제목"
         />
-        <SaveIndicator state={save} />
+        {loadState === "error" ? (
+          <SaveIndicator
+            state="error"
+            label="불러오기 실패"
+            onRetry={() => {
+              setError(null);
+              setLoadState("loading");
+              setReloadKey((k) => k + 1);
+            }}
+          />
+        ) : (
+          <SaveIndicator state={save} onRetry={retrySave} />
+        )}
         {confirmDelete ? (
           <div className="flex shrink-0 items-center gap-1">
             <span className="hidden whitespace-nowrap text-xs text-ink-2 sm:inline">
@@ -247,7 +297,9 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
             }}
             onBlur={memoSaver.flush}
             disabled={!loaded}
-            placeholder={loaded ? "세부 메모를 작성하세요…" : "불러오는 중…"}
+            placeholder={
+              loaded ? "세부 메모를 작성하세요…" : loadState === "error" ? "불러오지 못했습니다. 상단의 다시 시도를 눌러 주세요." : "불러오는 중…"
+            }
             className="min-h-0 flex-1 resize-none rounded-xl border border-black/5 bg-white/50 p-3 text-sm leading-relaxed outline-none transition-[background-color,box-shadow] focus:bg-white/80 focus:ring-2 focus:ring-apple-blue/30 scroll-thin"
           />
         </div>
@@ -314,17 +366,24 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
   );
 }
 
-function SaveIndicator({ state }: { state: SaveState }) {
+function SaveIndicator({ state, label, onRetry }: { state: SaveState; label?: string; onRetry?: () => void }) {
   if (state === "idle") return null;
+  if (state === "error") {
+    return (
+      <button
+        onClick={onRetry}
+        className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs text-[#c4271d] hover:bg-[#c4271d]/10"
+        title="다시 시도 (자세한 원인은 개발자 도구 콘솔 참고)"
+      >
+        <RotateCw className="size-3" />
+        {label ?? "저장 실패"} · 다시 시도
+      </button>
+    );
+  }
   return (
-    <span
-      className={cn(
-        "flex items-center gap-1 text-xs",
-        state === "error" ? "text-[#c4271d]" : "text-ink-2",
-      )}
-    >
+    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-ink-2">
       {state === "saving" && <Loader2 className="size-3 animate-spin" />}
-      {state === "saving" ? "저장 중" : state === "saved" ? "저장됨" : "저장 실패"}
+      {state === "saving" ? "저장 중" : "저장됨"}
     </span>
   );
 }

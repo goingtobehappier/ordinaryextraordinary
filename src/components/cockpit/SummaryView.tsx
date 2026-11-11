@@ -15,14 +15,14 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { WEEKDAY_KO, isDoneOn, occursOn, timeToMinutes, weekdayIndex } from "@/lib/date";
-import { normalizeTodo, type Category, type Subtask, type Todo } from "@/lib/types";
+import { normalizeTodo, type Category, type Todo } from "@/lib/types";
+import { isMissingColumn, toSubtasks, type Detail } from "@/lib/todoDetails";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel, Kbd } from "@/components/ui/Glass";
 import { DateRangeBar } from "./DateRangeBar";
 import { Markdown } from "./Markdown";
 import { PrintButton, PrintHeader } from "./Print";
 
-type Detail = { memo: string; subtasks: Subtask[] };
 type DayItem = { todo: Todo; done: boolean };
 type Day = { date: string; items: DayItem[]; note: string };
 type Sort = "desc" | "asc";
@@ -46,8 +46,6 @@ function dayCounts(day: Day): string[] {
   }
   return parts;
 }
-
-const isMissingColumn = (e: { code?: string } | null) => e?.code === "42703";
 
 /** 기간 내 할 일 + 상세(메모·하위 작업) + 데일리 노트. 레거시 컬럼(sub_tasks, note_date)도 대비 */
 async function fetchSummary(userId: string, start: string, end: string) {
@@ -89,31 +87,6 @@ async function fetchSummary(userId: string, start: string, end: string) {
     if (n.content?.trim()) notes.set(String(n.date).slice(0, 10), n.content);
   }
   return { todos: (todosRes.data ?? []).map(normalizeTodo), details, notes, warnings };
-}
-
-/** jsonb [{id,text,done}] 또는 레거시 형태(문자열 배열 등)를 공통 형태로 */
-function toSubtasks(raw: unknown): Subtask[] {
-  const arr = typeof raw === "string" ? safeJson(raw) : raw;
-  if (!Array.isArray(arr)) return [];
-  return arr
-    .map((e, i) =>
-      typeof e === "string"
-        ? { id: String(i), text: e, done: false }
-        : {
-            id: String(e?.id ?? i),
-            text: String(e?.text ?? e?.title ?? e?.name ?? ""),
-            done: Boolean(e?.done ?? e?.completed),
-          },
-    )
-    .filter((s) => s.text);
-}
-
-function safeJson(s: string): unknown {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
 }
 
 /** 날짜별로 묶기. 반복 일정은 완료한 날에만 기록으로 포함 */
