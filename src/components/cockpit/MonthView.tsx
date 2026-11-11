@@ -19,6 +19,7 @@ import { CATEGORY_STYLE } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { useDropToDate } from "./WeekBar";
+import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
 
 const MAX_ITEMS = 3;
 
@@ -32,6 +33,8 @@ export function MonthView() {
   const loading = useCockpit((s) => s.loading);
   const dropToDate = useDropToDate();
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const externalOn = useExternalEventsByDate();
+  const sourceColors = useSourceColors();
 
   const cur = parseISODate(selectedDate);
   const month = cur.getMonth();
@@ -82,6 +85,10 @@ export function MonthView() {
           const inMonth = parseISODate(iso).getMonth() === month;
           const selected = iso === selectedDate;
           const due = items.filter((t) => t.category === "마감" && !isDoneOn(t, iso)).length;
+          // 외부 일정은 할 일 다음 남는 칸에 표시, 넘치는 건수는 '더보기'에 합산
+          const external = externalOn(iso);
+          const externalShown = external.slice(0, Math.max(0, MAX_ITEMS - items.length));
+          const hidden = items.length + external.length - Math.min(items.length, MAX_ITEMS) - externalShown.length;
           return (
             <div
               key={iso}
@@ -135,15 +142,23 @@ export function MonthView() {
                     {due}
                   </span>
                 )}
-                {items.length > 0 && <span className="ml-auto hidden text-[10px] tabular-nums text-ink-2 sm:inline">{items.length}</span>}
+                {items.length + external.length > 0 && (
+                  <span className="ml-auto hidden text-[10px] tabular-nums text-ink-2 sm:inline">{items.length + external.length}</span>
+                )}
               </div>
-              {/* 모바일: 칸이 좁아 제목 대신 분류 색상 점으로 개수 표시 */}
-              {items.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center gap-0.5 sm:hidden" aria-label={`할 일 ${items.length}건`}>
+              {/* 모바일: 칸이 좁아 제목 대신 색상 점으로 개수 표시 (외부 일정은 네모 점) */}
+              {items.length + external.length > 0 && (
+                <div
+                  className="flex flex-wrap items-center justify-center gap-0.5 sm:hidden"
+                  aria-label={`할 일 ${items.length}건${external.length ? `, 외부 일정 ${external.length}건` : ""}`}
+                >
                   {items.slice(0, MAX_ITEMS).map((t) => (
                     <span key={t.id} className={cn("size-1.5 rounded-full", CATEGORY_STYLE[t.category].dot, isDoneOn(t, iso) && "opacity-40")} />
                   ))}
-                  {items.length > MAX_ITEMS && <span className="text-[9px] leading-none text-ink-2">+{items.length - MAX_ITEMS}</span>}
+                  {externalShown.map((e) => (
+                    <span key={e.id} className="size-1.5 rounded-[2px]" style={{ background: sourceColors.get(e.sourceId) ?? "#8e44ad" }} />
+                  ))}
+                  {hidden > 0 && <span className="text-[9px] leading-none text-ink-2">+{hidden}</span>}
                 </div>
               )}
               <ul className="hidden min-h-0 min-w-0 space-y-0.5 sm:block">
@@ -165,7 +180,12 @@ export function MonthView() {
                     <span className={cn("truncate", isDoneOn(t, iso) && "text-ink-2 line-through")}>{t.title}</span>
                   </li>
                 ))}
-                {items.length > MAX_ITEMS && <li className="truncate px-1 text-[10px] text-ink-2">+{items.length - MAX_ITEMS}건 더보기</li>}
+                {externalShown.map((e) => (
+                  <li key={e.id} className="px-1 py-px">
+                    <ExternalEventRow event={e} color={sourceColors.get(e.sourceId)} />
+                  </li>
+                ))}
+                {hidden > 0 && <li className="truncate px-1 text-[10px] text-ink-2">+{hidden}건 더보기</li>}
               </ul>
             </div>
           );

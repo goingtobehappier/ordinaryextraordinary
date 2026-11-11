@@ -42,6 +42,7 @@ import { CategoryPicker } from "./CategoryPicker";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { TimeBlocks } from "./TimeBlocks";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { ExternalEventStrip } from "./ExternalEvents";
 
 export const NEW_TODO_INPUT_ID = "cockpit-new-todo";
 
@@ -169,6 +170,7 @@ export function TodoBoard() {
       </div>
 
       <AddTodoForm prefill={prefillStart} />
+      <ExternalEventStrip date={selectedDate} />
 
       {/* 모바일: 목록(상) · 타임블록(하) / 태블릿 이상: 좌우 */}
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1.2fr)] md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] md:grid-rows-1">

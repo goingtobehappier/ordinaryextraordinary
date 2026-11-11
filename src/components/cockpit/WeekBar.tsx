@@ -19,6 +19,7 @@ import { isTodoDrag, readTodoDrag, startTodoDrag } from "@/lib/dnd";
 import { CATEGORY_STYLE, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
+import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
 
 const md = (iso: string) => {
   const d = parseISODate(iso);
@@ -47,6 +48,8 @@ export function WeekBar() {
   const todos = useCockpit((s) => s.todos);
   const dropToDate = useDropToDate();
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const externalOn = useExternalEventsByDate();
+  const sourceColors = useSourceColors();
 
   const days = weekDates(selectedDate);
   const today = todayISO();
@@ -99,6 +102,9 @@ export function WeekBar() {
           const done = items.filter((t) => isDoneOn(t, iso)).length;
           const dueCount = items.filter((t) => t.category === "마감" && !isDoneOn(t, iso)).length;
           const timedItems = items.filter((t) => t.start_time);
+          const external = externalOn(iso);
+          // 할 일 2줄을 먼저 채우고 남는 칸에 외부 일정
+          const externalShown = external.slice(0, Math.max(0, 2 - Math.min(timedItems.length, 2)));
           const selected = iso === selectedDate;
           const isToday = iso === today;
           const weekend = i >= 5;
@@ -171,6 +177,14 @@ export function WeekBar() {
                     </span>
                   </div>
                 ))}
+                {externalShown.map((e) => (
+                  <ExternalEventRow key={e.id} event={e} color={sourceColors.get(e.sourceId)} inverted={selected} />
+                ))}
+                {external.length > externalShown.length && (
+                  <div className={cn("truncate text-[10px]", selected ? "text-white/70" : "text-ink-2")}>
+                    외부 일정 {external.length}건
+                  </div>
+                )}
                 {items.length - Math.min(timedItems.length, 2) > 0 && (
                   <div className={cn("truncate text-[10px]", selected ? "text-white/70" : "text-ink-2")}>
                     {timedItems.length > 2 ? `+${items.length - 2}건` : `시간 미지정 ${items.length - timedItems.length}건`}

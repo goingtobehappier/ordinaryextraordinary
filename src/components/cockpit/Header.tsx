@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, CalendarRange, Keyboard, List, ListTree, Loader2, LogOut } from "lucide-react";
+import { useCalendar } from "@/store/calendar";
+import { CalendarDays, CalendarPlus, CalendarRange, Keyboard, List, ListTree, Loader2, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit, type ViewMode } from "@/store/cockpit";
 import { cn } from "@/lib/cn";
@@ -17,6 +18,7 @@ export function Header({ user }: { user: CockpitUser }) {
   const setShortcutsOpen = useCockpit((s) => s.setShortcutsOpen);
   const openCombo = useCockpit((s) => s.shortcuts.openShortcuts);
   const goHome = useCockpit((s) => s.goHome);
+  const setCalendarOpen = useCalendar((s) => s.setModalOpen);
   const [signingOut, setSigningOut] = useState(false);
   const router = useRouter();
 
@@ -49,6 +51,10 @@ export function Header({ user }: { user: CockpitUser }) {
 
       <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
         <ViewSwitcher />
+        <GlassButton onClick={() => setCalendarOpen(true)} title="외부 캘린더 연동" aria-label="외부 캘린더 연동" className="px-2 xl:px-3">
+          <CalendarPlus className="size-4 shrink-0" />
+          <span className="hidden whitespace-nowrap xl:inline">캘린더</span>
+        </GlassButton>
         <GlassButton onClick={() => setShortcutsOpen(true)} title="단축키 설정" aria-label="단축키 설정" className="px-2 xl:px-3">
           <Keyboard className="size-4 shrink-0" />
           <span className="hidden whitespace-nowrap xl:inline">단축키</span>

@@ -22,6 +22,8 @@ import { DayTaskPanel } from "./DayTaskPanel";
 import { SEARCH_INPUT_ID } from "./SearchBar";
 import { ShortcutSettings } from "./ShortcutSettings";
 import { TaskReminders } from "./TaskReminders";
+import { CalendarSyncModal } from "./CalendarSyncModal";
+import { useCalendar } from "@/store/calendar";
 
 const noopSubscribe = () => () => {};
 
@@ -144,6 +146,8 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const loadRange = useCockpit((s) => s.loadRange);
   const error = useCockpit((s) => s.error);
   const clearError = useCockpit((s) => s.clearError);
+  const loadCalendar = useCalendar((s) => s.loadEvents);
+  const calendarOpen = useCalendar((s) => s.modalOpen);
 
   // 보기에 맞는 범위만 불러오기 (일간/주간 = 해당 주, 월간 = 6주 그리드)
   const [rangeStart, rangeEnd] = useMemo(() => {
@@ -158,6 +162,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   useEffect(() => {
     void loadRange(rangeStart, rangeEnd);
   }, [rangeStart, rangeEnd, loadRange, user.id]);
+
+  // 외부 캘린더: 같은 범위만 서버에서 펼쳐 받음 (동기화 시작 날짜 이전은 서버에서 제외)
+  useEffect(() => {
+    void loadCalendar(rangeStart, rangeEnd);
+  }, [rangeStart, rangeEnd, loadCalendar, user.id]);
 
   const bindings = useMemo(() => {
     const s = useCockpit.getState;
@@ -181,7 +190,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   }, [shortcuts]);
 
   // 단축키 설정 중에는 녹화 입력과 충돌하지 않도록 비활성화
-  useHotkeys(bindings, !shortcutsOpen);
+  useHotkeys(bindings, !shortcutsOpen && !calendarOpen);
   useDeselect();
 
   return (
@@ -228,6 +237,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 
       {isFullView(view) && selectedTodoId && <TaskEditModal />}
       {shortcutsOpen && <ShortcutSettings />}
+      {calendarOpen && <CalendarSyncModal />}
       <TaskReminders userId={user.id} />
 
       {error && (

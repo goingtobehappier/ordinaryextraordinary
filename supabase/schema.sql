@@ -93,3 +93,28 @@ create policy "daily_notes: owner only" on public.daily_notes
   for all to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
+
+-- ─────────────────────── calendar_sources (외부 캘린더) ───────────────────────
+-- 테이블·RLS 정의는 migrations/007_calendar_sources.sql과 동일합니다.
+create table if not exists public.calendar_sources (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name       text not null default '외부 캘린더' check (char_length(name) between 1 and 60),
+  url        text not null check (url ~* '^https?://' and char_length(url) <= 2048),
+  sync_start date not null default date_trunc('month', current_date)::date,
+  color      text not null default '#8e44ad' check (color ~* '^#[0-9a-f]{6}$'),
+  created_at timestamptz not null default now(),
+  unique (user_id, url)
+);
+
+create index if not exists calendar_sources_user_id_idx on public.calendar_sources (user_id);
+
+alter table public.calendar_sources enable row level security;
+revoke all on public.calendar_sources from anon;
+grant select, insert, update, delete on public.calendar_sources to authenticated;
+
+drop policy if exists "calendar_sources: owner only" on public.calendar_sources;
+create policy "calendar_sources: owner only" on public.calendar_sources
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
