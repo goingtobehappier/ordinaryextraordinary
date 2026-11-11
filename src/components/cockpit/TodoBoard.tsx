@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -128,7 +127,13 @@ export function TodoBoard() {
       )}
     >
       {/* 헤더 + 태그 필터 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/5 px-4 pb-3 pt-3.5 sm:px-6 sm:pt-4 xl:flex-nowrap">
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-y-2 border-b border-black/5 pb-3 pt-3.5 sm:pt-4 xl:flex-nowrap",
+          // 모바일: 날짜 전체가 한 줄에 보이도록 좌우 여백·간격을 줄임
+          isMobile ? "gap-x-2 px-3" : "gap-x-4 px-4 sm:px-6",
+        )}
+      >
         {view === "day" && (
           <div className="flex shrink-0">
             <GlassButton className="px-1.5" onClick={() => setSelectedDate(addDays(selectedDate, -1))} aria-label="이전 날">
@@ -139,10 +144,18 @@ export function TodoBoard() {
             </GlassButton>
           </div>
         )}
-        <div className="min-w-0 flex-1 xl:flex-none">
-          <h2 className="truncate text-[17px] font-semibold tracking-[-0.01em] sm:text-[19px]">
+        {/* 모바일: 날짜는 말줄임 없이 전체 표시 (줄어들지 않음, 공간이 부족하면 토글 버튼이 다음 줄로) */}
+        <div className={cn(isMobile ? "shrink-0" : "min-w-0 flex-1 xl:flex-none")}>
+          <h2
+            className={cn(
+              "font-semibold tracking-[-0.01em]",
+              isMobile ? "whitespace-nowrap text-[16px]" : "truncate text-[17px] sm:text-[19px]",
+            )}
+          >
             {formatLong(selectedDate)}
-            {selectedDate === todayISO() && <span className="ml-2 text-sm font-medium text-apple-blue">오늘</span>}
+            {selectedDate === todayISO() && (
+              <span className={cn("font-medium text-apple-blue", isMobile ? "ml-1.5 text-xs" : "ml-2 text-sm")}>오늘</span>
+            )}
           </h2>
           <p className="truncate text-xs text-ink-2">
             {dayTodos.length}개 중 {doneCount}개 완료
@@ -155,15 +168,18 @@ export function TodoBoard() {
           <button
             type="button"
             onClick={() => setBlocksOpen((o) => !o)}
-            aria-expanded={blocksOpen}
+            aria-pressed={blocksOpen}
+            title={blocksOpen ? "타임블록 접기" : "타임블록 보기"}
             className={cn(
-              "flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors",
-              blocksOpen ? "bg-apple-blue/10 text-apple-blue" : "bg-black/5 text-ink-2 active:bg-black/10",
+              "ml-auto flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition-[background-color,color,box-shadow] duration-150",
+              // 켜짐: 브랜드 강조색 / 꺼짐: 회색
+              blocksOpen
+                ? "bg-apple-blue text-white shadow-sm shadow-apple-blue/30 active:bg-apple-blue/85"
+                : "bg-black/[0.06] text-ink-2 active:bg-black/10",
             )}
           >
             <LayoutList className="size-3.5" />
-            {blocksOpen ? "타임블록 접기" : "타임블록 보기"}
-            <ChevronDown className={cn("size-3.5 transition-transform", blocksOpen && "rotate-180")} />
+            타임블록
           </button>
         )}
 
