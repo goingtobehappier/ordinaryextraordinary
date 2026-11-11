@@ -58,12 +58,15 @@ function spanOf(t: Todo): { s: number; e: number } | null {
   return { s, e: e !== null && e > s ? e : Math.min(s + DEFAULT_DURATION, DAY_END) };
 }
 
+/** 화면에 그려지는 범위로 맞춤. 블록 배치와 점심시간 충돌 계산이 같은 값을 쓰도록 공용 */
+function clampSpan<T extends { s: number; e: number }>(it: T): T {
+  return { ...it, s: clamp(it.s, DAY_START, DAY_END - SNAP), e: clamp(it.e, DAY_START + SNAP, DAY_END) };
+}
+
 type Block = { todo: Todo; s: number; e: number; col: number; cols: number };
 
 function layoutBlocks(items: { todo: Todo; s: number; e: number }[]): Block[] {
-  const timed = items
-    .map((it) => ({ ...it, s: clamp(it.s, DAY_START, DAY_END - SNAP), e: clamp(it.e, DAY_START + SNAP, DAY_END) }))
-    .sort((a, b) => a.s - b.s || b.e - a.e);
+  const timed = items.map(clampSpan).sort((a, b) => a.s - b.s || b.e - a.e);
 
   // 겹치는 일정끼리 묶어 가로로 나란히 배치
   const blocks: Block[] = [];
@@ -143,15 +146,18 @@ export function TimeBlocks({
   }, [todos, drag]);
 
   // 드래그·드롭 미리보기 위치까지 반영해 점심시간이 실시간으로 밀리도록
+  // 블록과 똑같이 clamp한 값으로 계산 → 그려진 블록과 점심시간이 픽셀 단위로도 겹치지 않음
   const lunch = useMemo(() => {
-    const spans = occupied.flatMap((t) => {
-      if (drag && drag.id === t.id) return [{ s: drag.s, e: drag.e }];
+    // 화면에 그려지는 블록(todos)이 판단 기준(occupied)에서 빠지는 일이 없도록 합침
+    const all = new Map([...occupied, ...todos].map((t) => [t.id, t]));
+    const spans = [...all.values()].flatMap((t) => {
+      if (drag && drag.id === t.id) return [clampSpan({ s: drag.s, e: drag.e })];
       const span = spanOf(t);
-      return span ? [span] : [];
+      return span ? [clampSpan(span)] : [];
     });
-    if (dropAt !== null) spans.push({ s: dropAt, e: dropAt + DEFAULT_DURATION });
+    if (dropAt !== null) spans.push(clampSpan({ s: dropAt, e: dropAt + DEFAULT_DURATION }));
     return placeLunch(spans);
-  }, [occupied, drag, dropAt]);
+  }, [occupied, todos, drag, dropAt]);
 
   const isToday = date === todayISO();
   const totalMinutes = blocks.reduce((sum, b) => sum + (b.e - b.s), 0);
@@ -320,13 +326,15 @@ export function TimeBlocks({
             {/* 점심시간 (매일 기본 블록) — 업무 블록과 겹치면 자동으로 뒤로 밀림. transform으로 부드럽게 이동 */}
             <div
               className={cn(
-                "absolute inset-x-0 top-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed px-2.5 py-1.5 text-[11px] font-medium",
-                "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform motion-reduce:transition-none",
-                lunch.conflict ? "border-[#ff3b30]/40 text-[#c4271d]" : "border-[#ff9500]/40 text-[#b86b00]",
+                // z-0: 업무 블록(z-10) 아래. 빈 구간이 없어 겹칠 수밖에 없을 때도 업무 블록 텍스트가 가려지지 않음
+                "absolute inset-x-0 z-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed px-2.5 py-1.5 text-[11px] font-medium",
+                "transition-[top,height] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+                lunch.conflict ? "border-[#ff3b30]/40 text-[#c4271d] opacity-60" : "border-[#ff9500]/40 text-[#b86b00]",
               )}
               style={{
-                transform: `translateY(${minToPx(lunch.s)}px)`,
-                height: minToPx(lunch.e) - minToPx(lunch.s),
+                // 업무 블록과 같은 기준(top + 1px, height - 2px)으로 배치 → 맞닿아도 2px 간격으로 분리
+                top: minToPx(lunch.s) + 1,
+                height: minToPx(lunch.e) - minToPx(lunch.s) - 2,
                 backgroundImage: lunch.conflict
                   ? "repeating-linear-gradient(135deg, rgb(255 59 48 / 0.08) 0 8px, rgb(255 59 48 / 0.03) 8px 16px)"
                   : "repeating-linear-gradient(135deg, rgb(255 149 0 / 0.08) 0 8px, rgb(255 149 0 / 0.03) 8px 16px)",
@@ -339,18 +347,22 @@ export function TimeBlocks({
                     : undefined
               }
             >
-              <Utensils className="mt-px size-3 shrink-0" />
-              <span className="shrink-0">{LUNCH.label}</span>
-              <span className="shrink-0 tabular-nums opacity-70">
-                {clockLabel(lunch.s)}–{clockLabel(lunch.e)}
-              </span>
-              {lunch.shift > 0 && (
-                <span className="flex min-w-0 items-center gap-0.5 truncate rounded bg-[#ff9500]/15 px-1 tabular-nums">
-                  <ArrowDown className="size-2.5 shrink-0" />
-                  {formatShift(lunch.shift)}
-                </span>
+              {/* 빈 구간이 없으면 업무 블록 아래 깔리므로 텍스트 없이 빗금만 (사유는 툴팁) */}
+              {!lunch.conflict && (
+                <>
+                  <Utensils className="mt-px size-3 shrink-0" />
+                  <span className="shrink-0">{LUNCH.label}</span>
+                  <span className="shrink-0 tabular-nums opacity-70">
+                    {clockLabel(lunch.s)}–{clockLabel(lunch.e)}
+                  </span>
+                  {lunch.shift > 0 && (
+                    <span className="flex min-w-0 items-center gap-0.5 truncate rounded bg-[#ff9500]/15 px-1 tabular-nums">
+                      <ArrowDown className="size-2.5 shrink-0" />
+                      {formatShift(lunch.shift)}
+                    </span>
+                  )}
+                </>
               )}
-              {lunch.conflict && <span className="truncate opacity-80">· 빈 시간 없음</span>}
             </div>
 
             {/* 드롭 미리보기 */}
