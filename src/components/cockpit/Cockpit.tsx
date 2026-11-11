@@ -24,6 +24,7 @@ import { ShortcutSettings } from "./ShortcutSettings";
 import { TaskReminders } from "./TaskReminders";
 import { CalendarSyncModal } from "./CalendarSyncModal";
 import { useCalendar } from "@/store/calendar";
+import { useLunch } from "@/store/lunch";
 
 const noopSubscribe = () => () => {};
 
@@ -148,6 +149,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const clearError = useCockpit((s) => s.clearError);
   const loadCalendar = useCalendar((s) => s.loadEvents);
   const calendarOpen = useCalendar((s) => s.modalOpen);
+  const loadLunchSkips = useLunch((s) => s.load);
 
   // 보기에 맞는 범위만 불러오기 (일간/주간 = 해당 주, 월간 = 6주 그리드)
   const [rangeStart, rangeEnd] = useMemo(() => {
@@ -167,6 +169,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   useEffect(() => {
     void loadCalendar(rangeStart, rangeEnd);
   }, [rangeStart, rangeEnd, loadCalendar, user.id]);
+
+  // 당일 점심시간 삭제 기록 (테이블이 없으면 점심시간은 기본대로 표시)
+  useEffect(() => {
+    void loadLunchSkips(rangeStart, rangeEnd);
+  }, [rangeStart, rangeEnd, loadLunchSkips, user.id]);
 
   const bindings = useMemo(() => {
     const s = useCockpit.getState;

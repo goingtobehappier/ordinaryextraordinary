@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, Trash2, Utensils } from "lucide-react";
+import { ArrowDown, Trash2, Undo2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
+import { useLunch } from "@/store/lunch";
 import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { CATEGORY_STYLE, type Todo } from "@/lib/types";
@@ -117,6 +118,10 @@ export function TimeBlocks({
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
   const selectTodo = useCockpit((s) => s.selectTodo);
   const updateTodo = useCockpit((s) => s.updateTodo);
+  const setError = useCockpit((s) => s.setError);
+  const lunchSkipped = useLunch((s) => !!s.skipped[date]);
+  const skipLunch = useLunch((s) => s.skip);
+  const restoreLunch = useLunch((s) => s.restore);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -147,7 +152,9 @@ export function TimeBlocks({
 
   // 드래그·드롭 미리보기 위치까지 반영해 점심시간이 실시간으로 밀리도록
   // 블록과 똑같이 clamp한 값으로 계산 → 그려진 블록과 점심시간이 픽셀 단위로도 겹치지 않음
+  // 당일 점심시간을 삭제한 날은 블록도, 밀림 계산도 하지 않음 (해당 시간대는 빈 칸)
   const lunch = useMemo(() => {
+    if (lunchSkipped) return null;
     // 화면에 그려지는 블록(todos)이 판단 기준(occupied)에서 빠지는 일이 없도록 합침
     const all = new Map([...occupied, ...todos].map((t) => [t.id, t]));
     const spans = [...all.values()].flatMap((t) => {
@@ -157,7 +164,12 @@ export function TimeBlocks({
     });
     if (dropAt !== null) spans.push(clampSpan({ s: dropAt, e: dropAt + DEFAULT_DURATION }));
     return placeLunch(spans);
-  }, [occupied, todos, drag, dropAt]);
+  }, [lunchSkipped, occupied, todos, drag, dropAt]);
+
+  async function toggleLunch(skip: boolean) {
+    const err = await (skip ? skipLunch(date) : restoreLunch(date));
+    if (err) setError(`점심시간을 ${skip ? "삭제" : "복원"}하지 못했습니다: ${err}`);
+  }
 
   const isToday = date === todayISO();
   const totalMinutes = blocks.reduce((sum, b) => sum + (b.e - b.s), 0);
@@ -287,7 +299,18 @@ export function TimeBlocks({
         <span className="min-w-0 truncate font-medium">
           타임블록<span className="hidden lg:inline"> · 목록에서 끌어다 놓기</span>
         </span>
-        <span className="shrink-0 whitespace-nowrap tabular-nums">
+        <span className="flex shrink-0 items-center gap-2 whitespace-nowrap tabular-nums">
+          {lunchSkipped && (
+            <button
+              type="button"
+              onClick={() => void toggleLunch(false)}
+              className="flex items-center gap-1 rounded-md bg-[#ff9500]/10 px-1.5 py-0.5 font-medium text-[#b86b00] transition-colors hover:bg-[#ff9500]/20"
+              title="이 날짜의 점심시간을 다시 표시"
+            >
+              <Undo2 className="size-3" />
+              점심 복원
+            </button>
+          )}
           배분 {Math.floor(totalMinutes / 60)}시간 {totalMinutes % 60}분
         </span>
       </div>
@@ -323,11 +346,13 @@ export function TimeBlocks({
           </div>
 
           <div className="pointer-events-none absolute bottom-0 left-12 right-1 top-0">
-            {/* 점심시간 (매일 기본 블록) — 업무 블록과 겹치면 자동으로 뒤로 밀림. transform으로 부드럽게 이동 */}
+            {/* 점심시간 (매일 기본 블록) — 업무 블록과 겹치면 자동으로 뒤로 밀림. 당일 삭제한 날은 그리지 않음 */}
+            {lunch && (
             <div
               className={cn(
                 // z-0: 업무 블록(z-10) 아래. 빈 구간이 없어 겹칠 수밖에 없을 때도 업무 블록 텍스트가 가려지지 않음
-                "absolute inset-x-0 z-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed px-2.5 py-1.5 text-[11px] font-medium",
+                // pointer-events-auto: 호버 시 삭제 버튼·툴팁 표시 (상위 레이어는 pointer-events-none)
+                "group/lunch pointer-events-auto absolute inset-x-0 z-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed py-1.5 pl-2.5 pr-7 text-[11px] font-medium",
                 "transition-[top,height] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
                 lunch.conflict ? "border-[#ff3b30]/40 text-[#c4271d] opacity-60" : "border-[#ff9500]/40 text-[#b86b00]",
               )}
@@ -363,7 +388,22 @@ export function TimeBlocks({
                   )}
                 </>
               )}
+              {/* 당일 점심시간 삭제 (기본 설정은 유지) */}
+              <button
+                type="button"
+                onClick={() => void toggleLunch(true)}
+                aria-label="오늘 점심시간 삭제"
+                title="이 날짜의 점심시간만 삭제 (다른 날은 그대로)"
+                className={cn(
+                  "pointer-events-auto absolute right-1 top-1 flex size-5 cursor-pointer items-center justify-center rounded-md bg-white/80 text-ink-2 shadow-sm outline-none",
+                  "opacity-0 transition-[opacity,background-color,color] duration-150 group-hover/lunch:opacity-100 [@media(hover:none)]:opacity-100",
+                  "hover:bg-[#ff3b30] hover:text-white focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[#ff3b30]/50",
+                )}
+              >
+                <Trash2 className="size-3" />
+              </button>
             </div>
+            )}
 
             {/* 드롭 미리보기 */}
             {dropAt !== null && (
