@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
+  LayoutList,
   GripVertical,
   Loader2,
   Plus,
@@ -37,6 +39,7 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { formatCombo } from "@/hooks/useHotkeys";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { CategoryBadge, GlassButton, GlassInput, GlassPanel, Kbd, TagChip } from "@/components/ui/Glass";
 import { CategoryPicker } from "./CategoryPicker";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
@@ -69,7 +72,7 @@ export function TodoBoard() {
   const allTodos = useCockpit((s) => s.todos);
   const storedActiveTags = useCockpit((s) => s.activeTags);
   const recentTags = useCockpit((s) => s.recentTags);
-  const activeCategories = useCockpit((s) => s.activeCategories);
+  const storedActiveCategories = useCockpit((s) => s.activeCategories);
   const toggleTag = useCockpit((s) => s.toggleTag);
   const toggleCategory = useCockpit((s) => s.toggleCategory);
   const clearTags = useCockpit((s) => s.clearTags);
@@ -77,6 +80,10 @@ export function TodoBoard() {
   const loading = useCockpit((s) => s.loading);
 
   const [prefillStart, setPrefillStart] = useState<{ start: string; nonce: number } | null>(null);
+  const isMobile = useIsMobile();
+  /** 모바일: 타임블록은 기본 접힘, '타임블록 보기'를 눌러야 불러와 표시 */
+  const [blocksOpen, setBlocksOpen] = useState(false);
+  const showBlocks = !isMobile || blocksOpen;
 
   const dayTodos = useMemo(
     () =>
@@ -93,7 +100,9 @@ export function TodoBoard() {
   // 2차 태그: 전체 할 일 기준 최근 사용순 상위 5개만 노출
   const visibleTags = useMemo(() => recentTags.slice(0, RECENT_TAG_LIMIT), [recentTags]);
   // 노출되지 않은 태그가 필터로 남아 목록을 숨기지 않도록, 보이는 태그만 필터에 적용
-  const activeTags = storedActiveTags.filter((t) => visibleTags.includes(t));
+  // 모바일은 태그 필터 줄을 숨기므로, 해제할 수 없는 필터가 목록을 가리지 않도록 필터를 적용하지 않음
+  const activeTags = isMobile ? [] : storedActiveTags.filter((t) => visibleTags.includes(t));
+  const activeCategories = isMobile ? [] : storedActiveCategories;
 
   const q = query.trim().toLowerCase().replace(/^#/, "");
   const visible = dayTodos.filter(
@@ -111,7 +120,13 @@ export function TodoBoard() {
 
   return (
     // 데스크톱: 남은 높이를 채움 / 태블릿: 고정 높이 / 모바일: 목록·타임블록을 상하로 쌓아 더 높게
-    <GlassPanel className="flex h-[960px] min-h-0 min-w-0 flex-col overflow-hidden md:h-[720px] lg:h-auto lg:flex-1">
+    // 모바일에서 타임블록이 접혀 있으면 목록만큼만 높이를 씀
+    <GlassPanel
+      className={cn(
+        "flex min-h-0 min-w-0 flex-col overflow-hidden md:h-[720px] lg:h-auto lg:flex-1",
+        showBlocks ? "h-[960px]" : "h-[560px]",
+      )}
+    >
       {/* 헤더 + 태그 필터 */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/5 px-4 pb-3 pt-3.5 sm:px-6 sm:pt-4 xl:flex-nowrap">
         {view === "day" && (
@@ -135,7 +150,25 @@ export function TodoBoard() {
           </p>
         </div>
 
-        {/* 소형 화면: 아랫줄 전체 폭 + 가로 스크롤 / 데스크톱: 우측 정렬 */}
+        {/* 모바일 전용: 타임블록 보기/접기 */}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setBlocksOpen((o) => !o)}
+            aria-expanded={blocksOpen}
+            className={cn(
+              "flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-colors",
+              blocksOpen ? "bg-apple-blue/10 text-apple-blue" : "bg-black/5 text-ink-2 active:bg-black/10",
+            )}
+          >
+            <LayoutList className="size-3.5" />
+            {blocksOpen ? "타임블록 접기" : "타임블록 보기"}
+            <ChevronDown className={cn("size-3.5 transition-transform", blocksOpen && "rotate-180")} />
+          </button>
+        )}
+
+        {/* 태그 필터: 모바일(앱)에서는 줄 전체를 렌더링하지 않음 / 소형 화면: 아랫줄 전체 폭 + 가로 스크롤 / 데스크톱: 우측 정렬 */}
+        {!isMobile && (
         <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto pb-0.5 scroll-thin xl:ml-auto xl:w-auto xl:max-w-[66%]">
           <Tags className="size-4 shrink-0 text-ink-2" />
           <button
@@ -167,20 +200,33 @@ export function TodoBoard() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       <AddTodoForm prefill={prefillStart} />
       <ExternalEventStrip date={selectedDate} />
 
-      {/* 모바일: 목록(상) · 타임블록(하) / 태블릿 이상: 좌우 */}
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_minmax(0,1.2fr)] md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] md:grid-rows-1">
-        <TodoList todos={visible} date={selectedDate} emptyFiltered={dayTodos.length > 0} />
-        <TimeBlocks
+      {/* 모바일: 목록(상) · 타임블록(하, 펼쳤을 때만 마운트) / 태블릿 이상: 좌우 */}
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] md:grid-rows-1",
+          showBlocks ? "grid-rows-[minmax(0,1fr)_minmax(0,1.2fr)]" : "grid-rows-1",
+        )}
+      >
+        <TodoList
           todos={visible}
-          occupied={dayTodos}
           date={selectedDate}
-          onPickSlot={(start) => setPrefillStart({ start, nonce: Date.now() })}
+          emptyFiltered={dayTodos.length > 0}
+          className={showBlocks ? undefined : "border-b-0"}
         />
+        {showBlocks && (
+          <TimeBlocks
+            todos={visible}
+            occupied={dayTodos}
+            date={selectedDate}
+            onPickSlot={(start) => setPrefillStart({ start, nonce: Date.now() })}
+          />
+        )}
       </div>
     </GlassPanel>
   );

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isFullView, useCockpit, type ShortcutAction } from "@/store/cockpit";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { isMobileNow } from "@/hooks/useIsMobile";
 import { addDays, monthGrid, startOfWeek, todayISO } from "@/lib/date";
 import type { CockpitUser } from "@/lib/types";
 import { GlassPanel } from "@/components/ui/Glass";
@@ -151,6 +152,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const loadCalendar = useCalendar((s) => s.loadEvents);
   const calendarOpen = useCalendar((s) => s.modalOpen);
   const loadLunchSkips = useLunch((s) => s.load);
+
+  // 모바일(앱) 접속 시 기본 보기는 일간 — 좁은 화면에서 한 날짜에 집중 (접속 후 보기 전환은 자유)
+  useEffect(() => {
+    if (isMobileNow() && useCockpit.getState().view !== "day") useCockpit.getState().setView("day");
+  }, []);
 
   // 보기에 맞는 범위만 불러오기 (일간/주간 = 해당 주, 월간 = 6주 그리드)
   const [rangeStart, rangeEnd] = useMemo(() => {
