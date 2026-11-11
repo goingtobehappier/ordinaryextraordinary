@@ -21,12 +21,14 @@ function read<T>(key: string): T | null {
   }
 }
 
-function write(key: string, value: unknown) {
+/** 성공 여부 반환 (사생활 보호 모드·용량 초과 등으로 실패하면 false) */
+function write(key: string, value: unknown): boolean {
   try {
     if (value === null) localStorage.removeItem(key);
     else localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // 저장소 사용 불가 → 메모리 상태만 유지
+    return false;
   }
 }
 
@@ -34,7 +36,8 @@ export const readDraft = (userId: string, date: string) => {
   const d = read<NoteDraft>(draftKey(userId, date));
   return d && typeof d.content === "string" ? d : null;
 };
-export const writeDraft = (userId: string, date: string, content: string, base: string | null) =>
+/** 이 기기에 보관. 실패하면 false → 화면에 '저장 실패'로 알림 */
+export const writeDraft = (userId: string, date: string, content: string, base: string | null): boolean =>
   write(draftKey(userId, date), { content, savedAt: Date.now(), base } satisfies NoteDraft);
 /** 서버에 저장된 내용과 같을 때만 지움 (그 사이 더 입력한 내용은 보존) */
 export const clearDraftIf = (userId: string, date: string, savedContent: string) => {
