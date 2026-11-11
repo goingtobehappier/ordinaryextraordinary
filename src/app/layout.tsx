@@ -5,9 +5,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: { default: "ordinaryextraordinary", template: "%s · ordinaryextraordinary" },
   description: "주간 일정 · 할 일 · 데일리 노트를 한 화면에서",
-  applicationName: "ordinaryextraordinary",
+  applicationName: "Ordinary Extraordinary",
   // iOS 홈 화면 앱 (standalone)
-  appleWebApp: { capable: true, title: "OE Cockpit", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "오디너리엑스트라오디너리", statusBarStyle: "default" },
   formatDetection: { telephone: false },
   openGraph: {
     siteName: "ordinaryextraordinary",

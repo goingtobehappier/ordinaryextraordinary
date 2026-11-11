@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "ordinaryextraordinary",
-    short_name: "OE Cockpit",
+    name: "Ordinary Extraordinary",
+    short_name: "오디너리엑스트라오디너리",
     description: "주간 일정 · 할 일 · 데일리 노트를 한 화면에서",
     lang: "ko",
     start_url: "/",
