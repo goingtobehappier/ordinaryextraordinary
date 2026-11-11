@@ -140,3 +140,6 @@ create policy "lunch_skips: owner only" on public.lunch_skips
 
 -- ─────────────────────── Realtime (PC ↔ 모바일 실시간 동기화) ───────────────────────
 -- migrations/012_realtime.sql을 실행하면 todos·todo_details·daily_notes·lunch_skips가 supabase_realtime에 등록됩니다.
+
+-- ─────────────────────── all_day_events (종일 일정: 연차·휴가·여행) ───────────────────────
+-- 테이블·RLS·Realtime 정의는 migrations/013_all_day_events.sql과 동일합니다.

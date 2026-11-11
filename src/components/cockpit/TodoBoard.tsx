@@ -45,6 +45,7 @@ import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { TimeBlocks } from "./TimeBlocks";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { ExternalEventStrip } from "./ExternalEvents";
+import { AllDayBanner } from "./AllDayBanner";
 
 export const NEW_TODO_INPUT_ID = "cockpit-new-todo";
 
@@ -219,6 +220,8 @@ export function TodoBoard() {
         )}
       </div>
 
+      {/* 종일 일정(연차·휴가·여행): 날짜 바로 아래 고정 */}
+      <AllDayBanner date={selectedDate} className={isMobile ? "px-3 sm:px-3" : undefined} />
       <AddTodoForm prefill={prefillStart} />
       <ExternalEventStrip date={selectedDate} />
 

@@ -27,6 +27,7 @@ import { TaskReminders } from "./TaskReminders";
 import { CalendarSyncModal } from "./CalendarSyncModal";
 import { useCalendar } from "@/store/calendar";
 import { useLunch } from "@/store/lunch";
+import { useAllDay } from "@/store/allDay";
 
 const noopSubscribe = () => () => {};
 
@@ -97,6 +98,7 @@ function clearUserData(userId: string | null) {
     selectedTodoId: null,
     selectedDate: todayISO(),
   });
+  useAllDay.getState().reset();
 }
 
 /**
@@ -152,6 +154,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const loadCalendar = useCalendar((s) => s.loadEvents);
   const calendarOpen = useCalendar((s) => s.modalOpen);
   const loadLunchSkips = useLunch((s) => s.load);
+  const loadAllDay = useAllDay((s) => s.load);
 
   // 모바일(앱) 접속 시 기본 보기는 일간 — 좁은 화면에서 한 날짜에 집중 (접속 후 보기 전환은 자유)
   useEffect(() => {
@@ -181,6 +184,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   useEffect(() => {
     void loadLunchSkips(rangeStart, rangeEnd);
   }, [rangeStart, rangeEnd, loadLunchSkips, user.id]);
+
+  // 종일 일정 (테이블이 없으면 배너는 비어 있고, 추가 시 안내)
+  useEffect(() => {
+    void loadAllDay(rangeStart, rangeEnd);
+  }, [rangeStart, rangeEnd, loadAllDay, user.id]);
 
   const bindings = useMemo(() => {
     const s = useCockpit.getState;

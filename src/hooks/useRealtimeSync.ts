@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { noteSchemaReady } from "@/lib/dailyNotes";
 import { useCockpit } from "@/store/cockpit";
 import { useLunch } from "@/store/lunch";
+import { useAllDay } from "@/store/allDay";
 
 /** 다른 기기에서 Daily Memopad가 바뀜 → 해당 날짜 편집기가 반영 */
 export const NOTE_REMOTE_EVENT = "cockpit:note-remote";
@@ -46,6 +47,7 @@ export function useRealtimeSync(userId: string) {
       lastResync = Date.now();
       void useCockpit.getState().resync();
       void useLunch.getState().refresh();
+      void useAllDay.getState().refresh();
       window.dispatchEvent(new Event(RESYNC_EVENT));
     };
 
@@ -100,6 +102,22 @@ export function useRealtimeSync(userId: string) {
         .channel(`rt-lunch:${userId}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "lunch_skips", filter }, onLunch)
         .on("postgres_changes", { event: "DELETE", schema: "public", table: "lunch_skips" }, onLunch),
+    );
+
+    // ── 종일 일정(연차·휴가·여행) ──
+    const onAllDay = (p: RealtimePostgresChangesPayload<Row>) => {
+      if (p.eventType === "DELETE") {
+        const id = p.old?.id;
+        if (!useAllDay.getState().events.some((e) => e.id === id)) return;
+      }
+      void useAllDay.getState().refresh();
+    };
+    start(
+      sb
+        .channel(`rt-allday:${userId}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "all_day_events", filter }, onAllDay)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "all_day_events", filter }, onAllDay)
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "all_day_events" }, onAllDay),
     );
 
     // ── Daily Memopad — 실제 테이블(daily_notes / 레거시 daily_memos)이 확인된 뒤 구독 ──
