@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Columns2, Eye, Loader2, NotebookPen, PencilLine } from "lucide-react";
+import { Code2, Columns2, Eye, Loader2, NotebookPen, PencilLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
@@ -10,20 +10,21 @@ import { formatCombo } from "@/hooks/useHotkeys";
 import { cn } from "@/lib/cn";
 import { GlassPanel, Kbd } from "@/components/ui/Glass";
 import { Markdown } from "./Markdown";
+import { LiveNoteEditor, type LiveNoteEditorHandle } from "./LiveNoteEditor";
 
 export const DAILY_NOTE_INPUT_ID = "cockpit-daily-note";
 export const FOCUS_NOTE_EVENT = "cockpit:focus-note";
 
-type Mode = "write" | "split" | "preview";
+/** live = 서식 편집(기본, 기호 숨김) · write = 마크다운 원문 · split = 원문+미리보기 · preview = 읽기 */
+type Mode = "live" | "write" | "split" | "preview";
 
-const TEMPLATE = `## 오늘의 포커스
-- [ ]
-
-## 메모
-
+/** 주요사항 · 회고 2개 섹션. 빈 항목에는 섹션별 안내 문구가 표시됨 (LiveNoteEditor) */
+const TEMPLATE = `## 주요사항
+- 
 
 ## 회고
-`;
+- 잘한 점: 
+- 개선점: `;
 
 export function DailyNote({ userId, className }: { userId: string; className?: string }) {
   const selectedDate = useCockpit((s) => s.selectedDate);
@@ -34,12 +35,13 @@ export function DailyNote({ userId, className }: { userId: string; className?: s
 function NoteBody({ date, userId, className }: { date: string; userId: string; className?: string }) {
   const combo = useCockpit((s) => s.shortcuts.focusNote);
   const bumpRev = useCockpit((s) => s.bumpRev);
-  const [mode, setMode] = useState<Mode>("write");
+  const [mode, setMode] = useState<Mode>("live");
   const [content, setContent] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const liveRef = useRef<LiveNoteEditorHandle>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,11 +63,14 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
     };
   }, [date, userId]);
 
-  // Alt+M: 미리보기 모드면 분할 모드로 전환 후 포커스
+  // Alt+M: 미리보기 모드면 서식 편집으로 전환 후 마지막 줄 끝에 포커스
   useEffect(() => {
     const onFocus = () => {
-      setMode((m) => (m === "preview" ? "split" : m));
-      requestAnimationFrame(() => taRef.current?.focus());
+      setMode((m) => (m === "preview" ? "live" : m));
+      requestAnimationFrame(() => {
+        if (taRef.current) taRef.current.focus();
+        else liveRef.current?.focusEnd();
+      });
     };
     window.addEventListener(FOCUS_NOTE_EVENT, onFocus);
     return () => window.removeEventListener(FOCUS_NOTE_EVENT, onFocus);
@@ -86,6 +91,19 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   function change(text: string) {
     setContent(text);
     saver.call(text);
+  }
+
+  /** 템플릿 삽입 후 첫 항목(주요사항)에 바로 입력할 수 있게 포커스 */
+  function insertTemplate(target: "live" | "write") {
+    change(TEMPLATE);
+    saver.flush();
+    requestAnimationFrame(() => {
+      if (target === "live") {
+        document.querySelector<HTMLTextAreaElement>(`[data-note-live] textarea[aria-label="목록 항목"]`)?.focus();
+      } else {
+        taRef.current?.focus();
+      }
+    });
   }
 
   function toggleTask(lineIndex: number) {
@@ -144,7 +162,8 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         <div className="flex shrink-0 rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">
           {(
             [
-              ["write", PencilLine, "작성"],
+              ["live", PencilLine, "작성 (서식)"],
+              ["write", Code2, "마크다운 원문"],
               ["split", Columns2, "분할"],
               ["preview", Eye, "미리보기"],
             ] as const
@@ -168,7 +187,13 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
       </div>
 
       <div className={cn("grid min-h-0 flex-1", mode === "split" ? "grid-rows-2" : "grid-rows-1")}>
-        {mode !== "preview" && (
+        {mode === "live" && (
+          <div className="relative min-h-0">
+            <LiveNoteEditor ref={liveRef} value={content} onChange={change} onBlur={saver.flush} disabled={!loaded} />
+            {loaded && !content && <TemplateButton onClick={() => insertTemplate("live")} />}
+          </div>
+        )}
+        {(mode === "write" || mode === "split") && (
           <div className="relative min-h-0">
             <textarea
               id={DAILY_NOTE_INPUT_ID}
@@ -182,20 +207,10 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
               placeholder={loaded ? "오늘의 기록을 마크다운으로 남겨보세요…" : "불러오는 중…"}
               className="h-full w-full resize-none break-keep bg-transparent px-4 py-4 font-sans text-[14px] leading-[1.7] outline-none placeholder:text-ink-2/70 sm:px-5 scroll-thin"
             />
-            {loaded && !content && (
-              <button
-                onClick={() => {
-                  change(TEMPLATE);
-                  taRef.current?.focus();
-                }}
-                className="absolute left-5 top-14 rounded-lg bg-apple-blue/10 px-2.5 py-1 text-xs font-medium text-apple-blue hover:bg-apple-blue/15"
-              >
-                템플릿으로 시작하기
-              </button>
-            )}
+            {loaded && !content && <TemplateButton onClick={() => insertTemplate("write")} />}
           </div>
         )}
-        {mode !== "write" && (
+        {(mode === "split" || mode === "preview") && (
           <div className={cn("min-h-0 min-w-0 overflow-y-auto break-keep px-4 py-3 sm:px-5 scroll-thin", mode === "split" && "border-t border-black/5 bg-white/30")}>
             {content.trim() ? (
               <Markdown source={content} onToggleTask={toggleTask} />
@@ -231,5 +246,17 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         </span>
       </div>
     </GlassPanel>
+  );
+}
+
+function TemplateButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="absolute left-5 top-14 rounded-lg bg-apple-blue/10 px-2.5 py-1 text-xs font-medium text-apple-blue hover:bg-apple-blue/15"
+      title="주요사항 · 회고 템플릿"
+    >
+      템플릿으로 시작하기 (주요사항 · 회고)
+    </button>
   );
 }

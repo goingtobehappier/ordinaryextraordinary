@@ -170,7 +170,8 @@ function safeHref(url: string) {
   return /^(https?:|mailto:)/i.test(url) ? url : null;
 }
 
-function inline(text: string): ReactNode[] {
+/** 인라인 서식(코드·굵게·취소선·기울임·링크) 렌더링. 서식 편집기에서도 재사용 */
+export function inline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   let last = 0;
   let k = 0;
