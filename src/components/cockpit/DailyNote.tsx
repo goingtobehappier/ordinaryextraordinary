@@ -12,6 +12,7 @@ import { GlassPanel, Kbd } from "@/components/ui/Glass";
 import { Markdown } from "./Markdown";
 import { LiveNoteEditor, type LiveNoteEditorHandle } from "./LiveNoteEditor";
 import { describeNoteError, loadNote, saveNote, type DbError } from "@/lib/dailyNotes";
+import { applySyntax, NOTE_SYNTAX_HINTS, type NoteSyntax } from "@/lib/noteSyntax";
 import { clearDraft, clearDraftIf, readDraft, readUndo, writeDraft, writeUndo, type NoteUndo } from "@/lib/noteDraft";
 
 export const DAILY_NOTE_INPUT_ID = "cockpit-daily-note";
@@ -314,6 +315,41 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
     replaceContent("");
   }
 
+  /** 하단 서식 힌트 클릭 → 에디터 커서 위치에 마크다운 문법 적용 */
+  function insertSyntax(kind: NoteSyntax) {
+    if (!loaded) return;
+    if (mode === "preview") {
+      setMode("live");
+      requestAnimationFrame(() => liveRef.current?.insertSyntax(kind));
+      return;
+    }
+    if (mode === "live") {
+      liveRef.current?.insertSyntax(kind);
+      return;
+    }
+    const ta = taRef.current;
+    if (!ta) return;
+    const { selectionStart: s, selectionEnd: e, value } = ta;
+    let next: string;
+    let caret: number;
+    if (kind === "bold") {
+      ({ text: next, caret } = applySyntax(value, s, e, kind));
+    } else {
+      // 블록 문법은 커서가 있는 줄에 적용
+      const lineStart = value.lastIndexOf("\n", s - 1) + 1;
+      const nl = value.indexOf("\n", s);
+      const lineEnd = nl < 0 ? value.length : nl;
+      const out = applySyntax(value.slice(lineStart, lineEnd), s - lineStart, s - lineStart, kind);
+      next = value.slice(0, lineStart) + out.text + value.slice(lineEnd);
+      caret = lineStart + out.caret;
+    }
+    change(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(caret, caret);
+    });
+  }
+
   function toggleTask(lineIndex: number) {
     const lines = content.split("\n");
     lines[lineIndex] = lines[lineIndex].replace(/\[([ xX])\]/, (_, c: string) => (c === " " ? "[x]" : "[ ]"));
@@ -457,6 +493,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         )}
       </div>
 
+      <SyntaxHints onInsert={insertSyntax} disabled={!loaded} />
       <div className="flex items-center gap-3 whitespace-nowrap border-t border-black/5 px-4 py-2.5 text-[11px] text-ink-2 sm:px-5">
         <span className="shrink-0 tabular-nums">{stats}단어</span>
         {tasks.length > 0 && (
@@ -475,6 +512,33 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         </span>
       </div>
     </GlassPanel>
+  );
+}
+
+/** 미니 마크다운 서식 힌트: 평소엔 은은하게, 클릭하면 커서 위치에 문법 입력 */
+function SyntaxHints({ onInsert, disabled }: { onInsert: (kind: NoteSyntax) => void; disabled?: boolean }) {
+  return (
+    <div
+      className="flex items-center overflow-hidden whitespace-nowrap px-3 pb-1 pt-0.5 font-mono text-[11px] text-ink-2/50 sm:px-4"
+      aria-label="마크다운 서식 입력"
+    >
+      {NOTE_SYNTAX_HINTS.map(({ kind, label, title }, i) => (
+        <span key={kind} className="flex shrink-0 items-center">
+          {i > 0 && <span className="select-none px-0.5 text-ink-2/25" aria-hidden>|</span>}
+          <button
+            type="button"
+            // 에디터 포커스·커서를 유지한 채 삽입
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onInsert(kind)}
+            disabled={disabled}
+            title={title}
+            className="rounded px-1 py-0.5 transition-colors hover:bg-black/[0.04] hover:text-ink-2 disabled:pointer-events-none"
+          >
+            {label}
+          </button>
+        </span>
+      ))}
+    </div>
   );
 }
 

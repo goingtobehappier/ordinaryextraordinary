@@ -4,6 +4,7 @@ import { useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from
 import { Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { inline } from "./Markdown";
+import { applySyntax, type NoteSyntax } from "@/lib/noteSyntax";
 
 /**
  * 서식 편집기: 마크다운을 줄 단위로 편집하되 기호 대신 서식으로 보여 줌.
@@ -105,7 +106,11 @@ function fitHeights(els: (HTMLTextAreaElement | null)[]) {
   }
 }
 
-export type LiveNoteEditorHandle = { focusEnd: () => void };
+export type LiveNoteEditorHandle = {
+  focusEnd: () => void;
+  /** 마지막으로 편집한 줄의 커서 위치에 마크다운 문법 적용 */
+  insertSyntax: (kind: NoteSyntax) => void;
+};
 
 export function LiveNoteEditor({
   value,
@@ -126,6 +131,8 @@ export function LiveNoteEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const pending = useRef<{ line: number; pos: number } | null>(null);
   const [active, setActive] = useState<number | null>(null);
+  /** 마지막으로 포커스됐던 줄 (힌트 클릭 시 포커스가 없어도 그 줄의 커서 위치 사용) */
+  const lastLine = useRef<number | null>(null);
 
   const focusLine = (line: number, pos: number) => focusInput(inputs.current[line], pos);
 
@@ -133,6 +140,20 @@ export function LiveNoteEditor({
     focusEnd: () => {
       const last = lines.length - 1;
       focusLine(last, lines[last].text.length);
+    },
+    insertSyntax: (kind) => {
+      if (disabled) return;
+      const i = lastLine.current !== null && lastLine.current < lines.length ? lastLine.current : lines.length - 1;
+      const l = lines[i];
+      const el = inputs.current[i];
+      const head = prefix(l).length;
+      const s = el?.selectionStart ?? l.text.length;
+      const e = el?.selectionEnd ?? s;
+      const out = applySyntax(serialize(l), head + s, head + e, kind);
+      const parsed = parse(out.text);
+      const next = [...lines];
+      next[i] = parsed;
+      commit(next, { line: i, pos: Math.max(0, out.caret - prefix(parsed).length) });
     },
   }));
 
@@ -340,7 +361,10 @@ export function LiveNoteEditor({
                 onChange={(e) => editText(i, e.target.value, e.target.selectionStart)}
                 onKeyDown={(e) => onKeyDown(e, i)}
                 onPaste={(e) => onPaste(e, i)}
-                onFocus={() => setActive(i)}
+                onFocus={() => {
+                  lastLine.current = i;
+                  setActive(i);
+                }}
                 onBlur={() => {
                   setActive((a) => (a === i ? null : a));
                   onBlur?.();
