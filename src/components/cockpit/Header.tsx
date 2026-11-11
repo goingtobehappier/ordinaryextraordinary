@@ -16,6 +16,7 @@ import { BrandLockup } from "@/components/ui/Brand";
 export function Header({ user }: { user: CockpitUser }) {
   const setShortcutsOpen = useCockpit((s) => s.setShortcutsOpen);
   const openCombo = useCockpit((s) => s.shortcuts.openShortcuts);
+  const goHome = useCockpit((s) => s.goHome);
   const [signingOut, setSigningOut] = useState(false);
   const router = useRouter();
 
@@ -29,7 +30,18 @@ export function Header({ user }: { user: CockpitUser }) {
   return (
     // 데스크톱: 한 줄(h-16) / 태블릿·모바일: 검색창을 아랫줄 전체 폭으로 내려 줄바꿈
     <GlassPanel className="relative z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl px-3 py-2.5 sm:px-5 md:flex-nowrap md:gap-x-4 lg:h-16 lg:py-0 xl:gap-x-6 print:hidden">
-      <Link href="/" className="shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-apple-blue/40" aria-label="ordinaryextraordinary 홈">
+      <Link
+        href="/"
+        onClick={(e) => {
+          // 이미 홈(/)이므로 페이지 이동 대신 주간 보기 · 오늘로 즉시 전환 (Ctrl/⌘ 클릭 등 새 탭 열기는 기본 동작 유지)
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          goHome();
+        }}
+        className="shrink-0 cursor-pointer rounded-lg outline-none transition-[opacity,transform] duration-150 ease-out hover:scale-[1.03] hover:opacity-85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-apple-blue/40 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+        aria-label="홈: 주간 보기 · 오늘로 이동"
+        title="홈 (주간 보기 · 오늘)"
+      >
         <BrandLockup size={34} textClassName="hidden text-[18px] sm:inline" />
       </Link>
 

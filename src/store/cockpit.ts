@@ -146,6 +146,8 @@ type CockpitState = {
   openSummary: () => void;
   /** 검색/요약 뷰를 닫고 이전 보기로 */
   closeFullView: () => void;
+  /** 홈(로고): 주간 보기 · 오늘 날짜로 초기화하고 상세·검색·단축키 창을 닫음 */
+  goHome: () => void;
   setSearchRange: (range: DateRange) => void;
   setSummaryRange: (range: DateRange) => void;
   /** 스토어 밖에서 저장한 데이터(상세 메모·데일리 노트) 변경 알림 */
@@ -212,6 +214,15 @@ export const useCockpit = create<CockpitState>()(
       openSummary: () =>
         set((s) => ({ view: "summary", prevView: isFullView(s.view) ? s.prevView : s.view, selectedTodoId: null })),
       closeFullView: () => set((s) => ({ view: s.prevView, selectedTodoId: null })),
+      goHome: () =>
+        set({
+          view: "week",
+          prevView: "week",
+          selectedDate: todayISO(),
+          selectedTodoId: null,
+          searchQuery: "",
+          shortcutsOpen: false,
+        }),
       // 시작일이 종료일보다 늦으면 서로 맞춤
       setSearchRange: (range) => set({ searchRange: orderRange(range) }),
       setSummaryRange: (range) => set({ summaryRange: orderRange(range) }),
