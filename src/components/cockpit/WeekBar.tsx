@@ -20,6 +20,8 @@ import { CATEGORY_STYLE, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
+import { allDayChipStyle } from "./AllDayBanner";
+import { coversDate, useAllDay } from "@/store/allDay";
 
 const md = (iso: string) => {
   const d = parseISODate(iso);
@@ -50,6 +52,7 @@ export function WeekBar() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const externalOn = useExternalEventsByDate();
   const sourceColors = useSourceColors();
+  const allDayEvents = useAllDay((s) => s.events);
 
   const days = weekDates(selectedDate);
   const today = todayISO();
@@ -103,8 +106,11 @@ export function WeekBar() {
           const dueCount = items.filter((t) => t.category === "마감" && !isDoneOn(t, iso)).length;
           const timedItems = items.filter((t) => t.start_time);
           const external = externalOn(iso);
-          // 할 일 2줄을 먼저 채우고 남는 칸에 외부 일정
-          const externalShown = external.slice(0, Math.max(0, 2 - Math.min(timedItems.length, 2)));
+          const allDay = allDayEvents.filter((e) => coversDate(e, iso));
+          // 종일 일정 칩이 있으면 일정 줄을 1줄로 줄여 카드 높이 유지
+          const rows = allDay.length ? 1 : 2;
+          // 할 일을 먼저 채우고 남는 칸에 외부 일정
+          const externalShown = external.slice(0, Math.max(0, rows - Math.min(timedItems.length, rows)));
           const selected = iso === selectedDate;
           const isToday = iso === today;
           const weekend = i >= 5;
@@ -166,9 +172,30 @@ export function WeekBar() {
                 )}
               </div>
 
+              {/* 종일 일정(연차·휴가·여행): 첫 일정을 칩으로, 나머지는 +N (모바일·PC 공통) */}
+              {allDay.length > 0 && (
+                <div className="mt-1 flex min-w-0 items-center gap-0.5" title={allDay.map((e) => `${e.emoji} ${e.title}`).join("\n")}>
+                  <span
+                    className={cn(
+                      "flex min-w-0 items-center gap-0.5 rounded-md border px-1 py-px text-[10px] font-semibold leading-tight md:text-[11px]",
+                      selected && "border-white/30 bg-white/20 text-white",
+                    )}
+                    style={selected ? undefined : allDayChipStyle(allDay[0].color)}
+                  >
+                    <span aria-hidden className="shrink-0">{allDay[0].emoji}</span>
+                    <span className="min-w-0 truncate">{allDay[0].title}</span>
+                  </span>
+                  {allDay.length > 1 && (
+                    <span className={cn("shrink-0 text-[10px] font-semibold", selected ? "text-white/80" : "text-ink-2")}>
+                      +{allDay.length - 1}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* 지정 시간 일정 (모바일에서는 공간만 차지) */}
-              <div className="mt-1.5 min-h-0 min-w-0 flex-1 space-y-0.5 overflow-hidden max-md:invisible">
-                {timedItems.slice(0, 2).map((t) => (
+              <div className={cn("min-h-0 min-w-0 flex-1 space-y-0.5 overflow-hidden max-md:invisible", allDay.length ? "mt-1" : "mt-1.5")}>
+                {timedItems.slice(0, rows).map((t) => (
                   <div key={t.id} className="flex min-w-0 items-center gap-1 truncate text-[11px] leading-tight">
                     <span className={cn("size-1.5 shrink-0 rounded-full", selected ? "bg-white" : CATEGORY_STYLE[t.category].dot)} />
                     <span className={cn("font-semibold tabular-nums", selected ? "text-white" : "text-ink")}>{shortTime(t.start_time)}</span>
@@ -185,9 +212,9 @@ export function WeekBar() {
                     외부 일정 {external.length}건
                   </div>
                 )}
-                {items.length - Math.min(timedItems.length, 2) > 0 && (
+                {items.length - Math.min(timedItems.length, rows) > 0 && (
                   <div className={cn("truncate text-[10px]", selected ? "text-white/70" : "text-ink-2")}>
-                    {timedItems.length > 2 ? `+${items.length - 2}건` : `시간 미지정 ${items.length - timedItems.length}건`}
+                    {timedItems.length > rows ? `+${items.length - rows}건` : `시간 미지정 ${items.length - timedItems.length}건`}
                   </div>
                 )}
               </div>

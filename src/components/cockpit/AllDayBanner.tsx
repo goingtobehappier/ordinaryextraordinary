@@ -23,54 +23,63 @@ const tint = (hex: string, alpha: string) => `${hex}${alpha}`;
 
 type Editing = { mode: "add" } | { mode: "edit"; event: AllDayEvent } | null;
 
+/** 해당 날짜에 걸치는 종일 일정 (등록순) */
+export function useAllDayOn(date: string) {
+  const events = useAllDay((s) => s.events);
+  return events.filter((e) => coversDate(e, date));
+}
+
+/** 다른 화면(주간 카드 등)에서 쓰는 칩 색상 */
+export const allDayChipStyle = (color: string) => ({
+  color,
+  backgroundColor: tint(color, "1f"),
+  borderColor: tint(color, "40"),
+});
+
 /**
- * 종일 일정 배너: 날짜 표시 영역 바로 아래에 고정.
+ * 종일 일정 인라인 칩: 날짜 헤더와 같은 줄에 배치 (별도 줄 없음).
  * 해당 날짜에 걸치는 연차·휴가·여행 등을 색상 칩으로 보여 주고, 칩을 누르면 수정·삭제, '+'로 추가.
+ * 칩이 많으면 이 영역 안에서만 가로 스크롤.
  */
-export function AllDayBanner({ date, className }: { date: string; className?: string }) {
-  const events = useAllDay((s) => s.events).filter((e) => coversDate(e, date));
+export function AllDayInline({ date, compact = false, className }: { date: string; compact?: boolean; className?: string }) {
+  const events = useAllDayOn(date);
   const [editing, setEditing] = useState<Editing>(null);
 
   return (
-    <div
-      className={cn("flex min-w-0 items-center gap-1.5 border-b border-black/5 px-3 py-2 sm:px-6", className)}
-      aria-label="종일 일정"
-    >
-      <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-ink-2">
-        <CalendarDays className="size-3.5" />
-        종일
-      </span>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5 scroll-thin">
-        {events.map((e) => (
-          <button
-            key={e.id}
-            type="button"
-            onClick={() => setEditing({ mode: "edit", event: e })}
-            title={`${e.title}${e.end_date ? ` (${md(e.date)}–${md(e.end_date)})` : ""} · 눌러서 수정`}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-[filter,transform] hover:brightness-95 active:scale-[0.97]"
-            style={{ color: e.color, backgroundColor: tint(e.color, "1f"), borderColor: tint(e.color, "40") }}
-          >
-            <span aria-hidden>{e.emoji}</span>
-            <span className="max-w-[160px] truncate">{e.title}</span>
-            {e.end_date && (
-              <span className="font-medium tabular-nums opacity-70">
-                {md(e.date)}–{md(e.end_date)}
-              </span>
-            )}
-          </button>
-        ))}
+    <div className={cn("flex min-w-0 items-center gap-1 overflow-x-auto py-0.5 scroll-thin", className)} aria-label="종일 일정">
+      {events.map((e) => (
         <button
+          key={e.id}
           type="button"
-          onClick={() => setEditing({ mode: "add" })}
-          className={cn(
-            "flex h-7 shrink-0 items-center gap-0.5 rounded-full border border-dashed border-black/15 px-2.5 text-xs font-medium text-ink-2 transition-colors hover:border-apple-blue/40 hover:text-apple-blue",
-          )}
-          aria-label="종일 일정 추가"
+          onClick={() => setEditing({ mode: "edit", event: e })}
+          title={`${e.title}${e.end_date ? ` (${md(e.date)}–${md(e.end_date)})` : ""} · 눌러서 수정`}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-[filter,transform] hover:brightness-95 active:scale-[0.97]"
+          style={allDayChipStyle(e.color)}
         >
-          <Plus className="size-3.5" />
-          {events.length === 0 && <span>종일 일정</span>}
+          <span aria-hidden>{e.emoji}</span>
+          <span className={cn("truncate", compact ? "max-w-[88px]" : "max-w-[160px]")}>{e.title}</span>
+          {e.end_date && !compact && (
+            <span className="font-medium tabular-nums opacity-70">
+              {md(e.date)}–{md(e.end_date)}
+            </span>
+          )}
         </button>
-      </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setEditing({ mode: "add" })}
+        className="flex h-7 shrink-0 items-center gap-0.5 rounded-full border border-dashed border-black/15 px-2 text-xs font-medium text-ink-2 transition-colors hover:border-apple-blue/40 hover:text-apple-blue"
+        aria-label="종일 일정 추가"
+        title="종일 일정 추가 (연차·휴가·여행 등)"
+      >
+        <Plus className="size-3.5" />
+        {events.length === 0 && !compact && (
+          <span className="flex items-center gap-0.5">
+            <CalendarDays className="size-3" />
+            종일
+          </span>
+        )}
+      </button>
       {editing && (
         <AllDayDialog
           date={date}

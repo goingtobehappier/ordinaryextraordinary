@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, Trash2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import { useLunch } from "@/store/lunch";
-import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO } from "@/lib/date";
+import { useAllDay, coversDate } from "@/store/allDay";
+import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO, weekdayIndex } from "@/lib/date";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { CATEGORY_STYLE, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -123,6 +124,10 @@ export function TimeBlocks({
   const lunchSkipped = useLunch((s) => !!s.skipped[date]);
   const skipLunch = useLunch((s) => s.skip);
   const restoreLunch = useLunch((s) => s.restore);
+  // 자동 예외: 주말(토·일)이거나 종일 일정(연차·휴가 등)이 있는 날은 점심시간 블록을 만들지 않음
+  const hasAllDay = useAllDay((s) => s.events.some((e) => coversDate(e, date)));
+  const lunchAutoOff: "weekend" | "allDay" | null = weekdayIndex(date) >= 5 ? "weekend" : hasAllDay ? "allDay" : null;
+  const lunchHidden = lunchSkipped || lunchAutoOff !== null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -155,7 +160,7 @@ export function TimeBlocks({
   // 블록과 똑같이 clamp한 값으로 계산 → 그려진 블록과 점심시간이 픽셀 단위로도 겹치지 않음
   // 당일 점심시간을 삭제한 날은 블록도, 밀림 계산도 하지 않음 (해당 시간대는 빈 칸)
   const lunch = useMemo(() => {
-    if (lunchSkipped) return null;
+    if (lunchHidden) return null;
     // 화면에 그려지는 블록(todos)이 판단 기준(occupied)에서 빠지는 일이 없도록 합침
     const all = new Map([...occupied, ...todos].map((t) => [t.id, t]));
     const spans = [...all.values()].flatMap((t) => {
@@ -165,7 +170,7 @@ export function TimeBlocks({
     });
     if (dropAt !== null) spans.push(clampSpan({ s: dropAt, e: dropAt + DEFAULT_DURATION }));
     return placeLunch(spans);
-  }, [lunchSkipped, occupied, todos, drag, dropAt]);
+  }, [lunchHidden, occupied, todos, drag, dropAt]);
 
   async function toggleLunch(skip: boolean) {
     const err = await (skip ? skipLunch(date) : restoreLunch(date));
@@ -303,21 +308,25 @@ export function TimeBlocks({
         <span className="flex shrink-0 items-center gap-2 whitespace-nowrap tabular-nums">
           <AlarmToggle />
           {/* 점심시간 토글: 켜짐 = 선명한 아이콘 / 당일 삭제 = 반투명 + 사선 */}
+          {/* 주말·종일 일정 날은 자동으로 꺼짐 (토글 비활성) */}
           <button
             type="button"
             onClick={() => void toggleLunch(!lunchSkipped)}
-            aria-pressed={!lunchSkipped}
+            disabled={lunchAutoOff !== null}
+            aria-pressed={!lunchHidden}
             aria-label={lunchSkipped ? "오늘 점심시간 복원" : "오늘 점심시간 삭제"}
             title={
-              lunchSkipped
-                ? `점심시간 꺼짐 · 클릭하면 복원 (${clockLabel(LUNCH.start)}–${clockLabel(LUNCH.end)})`
-                : "점심시간 켜짐 · 클릭하면 이 날짜만 삭제"
+              lunchAutoOff
+                ? `점심시간 자동 제외 · ${lunchAutoOff === "weekend" ? "주말" : "종일 일정이 있는 날"}`
+                : lunchSkipped
+                  ? `점심시간 꺼짐 · 클릭하면 복원 (${clockLabel(LUNCH.start)}–${clockLabel(LUNCH.end)})`
+                  : "점심시간 켜짐 · 클릭하면 이 날짜만 삭제"
             }
             className={cn(
               "relative flex size-6 items-center justify-center rounded-md outline-none transition-[background-color,color,opacity] duration-150",
-              "focus-visible:ring-2 focus-visible:ring-[#ff9500]/50 active:scale-95 motion-reduce:active:scale-100",
-              lunchSkipped
-                ? "text-ink-2 opacity-45 hover:bg-black/5 hover:opacity-80"
+              "focus-visible:ring-2 focus-visible:ring-[#ff9500]/50 active:scale-95 motion-reduce:active:scale-100 disabled:cursor-default disabled:active:scale-100",
+              lunchHidden
+                ? "text-ink-2 opacity-45 hover:bg-black/5 hover:opacity-80 disabled:hover:bg-transparent disabled:hover:opacity-45"
                 : "bg-[#ff9500]/12 text-[#b86b00] hover:bg-[#ff9500]/20",
             )}
           >
@@ -327,7 +336,7 @@ export function TimeBlocks({
               aria-hidden
               className={cn(
                 "pointer-events-none absolute h-[1.5px] w-[18px] rotate-[-45deg] rounded-full bg-current transition-opacity duration-150",
-                lunchSkipped ? "opacity-100" : "opacity-0",
+                lunchHidden ? "opacity-100" : "opacity-0",
               )}
             />
           </button>

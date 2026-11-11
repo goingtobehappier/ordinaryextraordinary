@@ -45,7 +45,7 @@ import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { TimeBlocks } from "./TimeBlocks";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { ExternalEventStrip } from "./ExternalEvents";
-import { AllDayBanner } from "./AllDayBanner";
+import { AllDayInline } from "./AllDayBanner";
 
 export const NEW_TODO_INPUT_ID = "cockpit-new-todo";
 
@@ -146,7 +146,7 @@ export function TodoBoard() {
           </div>
         )}
         {/* 모바일: 날짜는 말줄임 없이 전체 표시 (줄어들지 않음, 공간이 부족하면 토글 버튼이 다음 줄로) */}
-        <div className={cn(isMobile ? "shrink-0" : "min-w-0 flex-1 xl:flex-none")}>
+        <div className={cn(isMobile ? "shrink-0" : "min-w-0 shrink")}>
           <h2
             className={cn(
               "font-semibold tracking-[-0.01em]",
@@ -163,6 +163,13 @@ export function TodoBoard() {
             {loading && <Loader2 className="ml-1.5 inline size-3 animate-spin" />}
           </p>
         </div>
+
+        {/* 종일 일정(연차·휴가·여행): 날짜 바로 오른쪽, 같은 줄 — 남는 폭을 쓰고 넘치면 이 영역만 가로 스크롤 */}
+        <AllDayInline
+          date={selectedDate}
+          compact={isMobile}
+          className={cn("flex-1", isMobile ? "min-w-[30px]" : "min-w-[80px]")}
+        />
 
         {/* 모바일 전용: 타임블록 보기/접기 */}
         {isMobile && (
@@ -220,8 +227,6 @@ export function TodoBoard() {
         )}
       </div>
 
-      {/* 종일 일정(연차·휴가·여행): 날짜 바로 아래 고정 */}
-      <AllDayBanner date={selectedDate} className={isMobile ? "px-3 sm:px-3" : undefined} />
       <AddTodoForm prefill={prefillStart} />
       <ExternalEventStrip date={selectedDate} />
 
