@@ -8,11 +8,15 @@ import { isDoneOn, occursOn, shortTime, timeToMinutes, toISODate, endTimeLabel }
 import { CATEGORY_STYLE, normalizeTodo, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { CategoryBadge } from "@/components/ui/Glass";
+import { useAlarm } from "@/store/alarm";
+import { installAudioUnlock, playChime, showSystemNotification } from "@/lib/alarm";
 
 /** 시작 몇 분 전부터 알릴지 */
 const LEAD_MIN = 5;
 /** 시작 후 몇 분까지는 늦게 열어도 알릴지 (그 이후는 지난 알림으로 보고 띄우지 않음) */
 const GRACE_MIN = 10;
+/** 정각 알람: 시작 후 몇 분까지 늦게 열어도 울릴지 */
+const START_GRACE_MIN = 2;
 /** 시간 확인 주기 */
 const TICK_MS = 15_000;
 /** 동시에 보여줄 최대 알림 수 */
@@ -27,11 +31,13 @@ const reminderKey = (t: Todo, date: string) => `${t.id}|${date}|${shortTime(t.st
 
 // ───────────── 알림 확인 상태 (사용자·날짜별 localStorage) ─────────────
 type SeenStore = { date: string; keys: string[] };
-const storageKey = (userId: string) => `cockpit-reminders:${userId}`;
+/** reminders: 확인한 토스트 · alarms: 이미 울린 알람(여러 탭 중복 방지) */
+type SeenKind = "reminders" | "alarms";
+const storageKey = (userId: string, kind: SeenKind) => `cockpit-${kind}:${userId}`;
 
-function readSeen(userId: string, date: string): Set<string> {
+function readSeen(userId: string, date: string, kind: SeenKind = "reminders"): Set<string> {
   try {
-    const raw = localStorage.getItem(storageKey(userId));
+    const raw = localStorage.getItem(storageKey(userId, kind));
     const parsed = raw ? (JSON.parse(raw) as SeenStore) : null;
     // 날짜가 바뀌면 지난 기록은 버림
     return new Set(parsed?.date === date && Array.isArray(parsed.keys) ? parsed.keys : []);
@@ -40,9 +46,9 @@ function readSeen(userId: string, date: string): Set<string> {
   }
 }
 
-function writeSeen(userId: string, date: string, keys: Set<string>) {
+function writeSeen(userId: string, date: string, keys: Set<string>, kind: SeenKind = "reminders") {
   try {
-    localStorage.setItem(storageKey(userId), JSON.stringify({ date, keys: [...keys] } satisfies SeenStore));
+    localStorage.setItem(storageKey(userId, kind), JSON.stringify({ date, keys: [...keys] } satisfies SeenStore));
   } catch {
     // 저장소를 쓸 수 없으면 이번 세션 메모리로만 관리
   }
@@ -82,6 +88,41 @@ function useTodayTimedTodos(userId: string, today: string) {
     // 삭제는 rev 증가 → 재조회로 반영됨
     return [...byId.values()].filter((t) => t.start_time && occursOn(t, today));
   }, [fetched, storeTodos, today]);
+}
+
+/**
+ * 타임테이블 알람 (알림 켜짐일 때): 시작 LEAD_MIN분 전 '미리 알림', 시작 시각 '정각 알림'
+ *  - 시스템 알림(권한 허용 시) + 은은한 알람음
+ *  - 과업·날짜·시각·단계별로 한 번만 (localStorage 기록 → 새로고침·여러 탭에서도 중복 없음)
+ */
+function fireAlarms(userId: string, date: string, nowMin: number, list: Todo[]) {
+  if (!useAlarm.getState().enabled) return;
+  const fired = readSeen(userId, date, "alarms");
+  const alarms: { todo: Todo; phase: "pre" | "start"; start: number }[] = [];
+  for (const todo of list) {
+    const start = timeToMinutes(todo.start_time);
+    if (start === null || isDoneOn(todo, date)) continue;
+    const phase =
+      nowMin >= start && nowMin <= start + START_GRACE_MIN ? "start" : nowMin >= start - LEAD_MIN && nowMin < start ? "pre" : null;
+    if (!phase) continue;
+    const base = reminderKey(todo, date);
+    if (fired.has(`${base}|${phase}`)) continue;
+    fired.add(`${base}|${phase}`);
+    // 정각 알람이 울렸으면 미리 알림은 건너뜀 (늦게 연 경우)
+    if (phase === "start") fired.add(`${base}|pre`);
+    alarms.push({ todo, phase, start });
+  }
+  if (!alarms.length) return;
+  writeSeen(userId, date, fired, "alarms");
+
+  playChime(alarms.some((a) => a.phase === "start") ? "start" : "pre");
+  for (const { todo, phase, start } of alarms) {
+    const time = `${shortTime(todo.start_time)}${todo.end_time ? ` – ${endTimeLabel(todo.end_time)}` : ""}`;
+    void showSystemNotification(
+      phase === "start" ? `업무 시작 시간입니다: ${todo.title}` : `${start - nowMin}분 후 업무 시작: ${todo.title}`,
+      { body: time, tag: reminderKey(todo, date) },
+    );
+  }
 }
 
 /**
@@ -155,6 +196,8 @@ export function TaskReminders({ userId }: { userId: string }) {
       })
       .sort((a, b) => (timeToMinutes(a.start_time) ?? 0) - (timeToMinutes(b.start_time) ?? 0));
 
+    fireAlarms(userId, date, nowMin, list);
+
     if (due.length) {
       setReminders((prev) => [
         ...prev,
@@ -164,7 +207,10 @@ export function TaskReminders({ userId }: { userId: string }) {
       ]);
     }
     setNow(current);
-  }, [dismiss, seen]);
+  }, [dismiss, seen, userId]);
+
+  // 브라우저 자동재생 정책: 첫 클릭·키 입력 때 알람음 잠금 해제
+  useEffect(() => installAudioUnlock(), []);
 
   // 주기적으로 시각 확인 + 탭으로 돌아왔을 때 즉시 확인
   useEffect(() => {

@@ -9,6 +9,7 @@ import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { CATEGORY_STYLE, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { AlarmToggle } from "./AlarmToggle";
 
 const HOUR_PX = 52;
 const DAY_START = 6 * 60; // 06:00
@@ -300,6 +301,7 @@ export function TimeBlocks({
           타임블록<span className="hidden lg:inline"> · 목록에서 끌어다 놓기</span>
         </span>
         <span className="flex shrink-0 items-center gap-2 whitespace-nowrap tabular-nums">
+          <AlarmToggle />
           {/* 점심시간 토글: 켜짐 = 선명한 아이콘 / 당일 삭제 = 반투명 + 사선 */}
           <button
             type="button"

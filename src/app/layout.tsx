@@ -1,15 +1,25 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "ordinaryextraordinary", template: "%s · ordinaryextraordinary" },
   description: "주간 일정 · 할 일 · 데일리 노트를 한 화면에서",
   applicationName: "ordinaryextraordinary",
+  // iOS 홈 화면 앱 (standalone)
+  appleWebApp: { capable: true, title: "OE Cockpit", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
   openGraph: {
     siteName: "ordinaryextraordinary",
     title: "ordinaryextraordinary",
     description: "주간 일정 · 할 일 · 데일리 노트를 한 화면에서",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#eef1f6",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -31,7 +41,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
       </head>
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }
