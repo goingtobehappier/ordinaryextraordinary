@@ -4,6 +4,8 @@
 //   - 시작 5분 전: 제목 "✨ [업무명]", 본문 "⏰ 14:00 – 15:00 · 5분 후 시작" + "🏷️ 미팅 · #태그"
 //   - 시작 시각  : 제목 "⏰ [업무명]", 본문 "⏰ 14:00 – 15:00 · 지금 시작" + "🏷️ 미팅 · #태그"
 //   (브랜드 문구 없이 이모지 + 일정 제목만. 앱 안 알림 lib/alarm.ts formatAlarm과 같은 형식)
+//   - 매일 10:00 · 14:00: 오늘 미완료 + 시간 미지정 할 일 리마인드
+//       제목 "📌 [리마인드] 오늘 챙겨야 할 일 N건", 본문 "할 일1, 할 일2 외 N건" (0건이면 발송 안 함)
 // 을 Web Push로 보냄. 서비스 워커(public/sw.js)가 받아 OS 알림으로 표시 → 탭을 닫아도 도착.
 //
 // 필요한 시크릿 (supabase secrets set ...):
@@ -18,6 +20,13 @@ import webpush from "npm:web-push@3.6.7";
 const LEAD_MIN = 5;
 const START_GRACE_MIN = 2;
 const LOG_KEEP_DAYS = 3;
+
+/** 시간 미지정 할 일 리마인드 시각 (기기 시간대 기준 = 한국 기기는 KST) */
+const DIGEST_SLOTS = [10 * 60, 14 * 60];
+/** Cron이 몇 분 밀려도 놓치지 않도록 허용하는 지연 (발송 기록으로 1회만) */
+const DIGEST_GRACE_MIN = 10;
+/** 본문에 이름을 보여 줄 최대 개수 (나머지는 "외 N건") */
+const DIGEST_NAMES = 2;
 
 /** 알림 시각 요소 (public/icons) */
 const ICON = "/icons/icon-192.png"; // 브랜드 로고
@@ -40,7 +49,15 @@ type Todo = {
   completed_dates: string[];
 };
 type Sub = { endpoint: string; user_id: string; p256dh: string; auth: string; tz: string };
-type Alarm = { userId: string; tz: string; key: string; title: string; body: string; tag: string; phase: "pre" | "start" };
+type Alarm = {
+  userId: string;
+  tz: string;
+  key: string;
+  title: string;
+  body: string;
+  tag: string;
+  phase: "pre" | "start" | "digest";
+};
 
 const env = (k: string) => {
   const v = Deno.env.get(k);
@@ -125,6 +142,19 @@ function formatAlarm(t: Todo, phase: "pre" | "start", minutesLeft: number) {
   };
 }
 
+/** 시간 미지정 리마인드 문구: "📌 [리마인드] 오늘 챙겨야 할 일 N건" / "할 일1, 할 일2 외 N건" */
+function formatDigest(items: Todo[]) {
+  const names = items.slice(0, DIGEST_NAMES).map((t) => t.title).join(", ");
+  const rest = items.length - DIGEST_NAMES;
+  return {
+    title: `📌 [리마인드] 오늘 챙겨야 할 일 ${items.length}건`,
+    body: rest > 0 ? `${names} 외 ${rest}건` : names,
+  };
+}
+
+/** 지금이 리마인드 시각(허용 지연 포함)이면 그 슬롯(분), 아니면 null */
+const digestSlot = (min: number) => DIGEST_SLOTS.find((s) => min >= s && min < s + DIGEST_GRACE_MIN) ?? null;
+
 Deno.serve(async (req) => {
   if (req.headers.get("x-cron-secret") !== env("ALARM_CRON_SECRET")) {
     return new Response("unauthorized", { status: 401 });
@@ -151,11 +181,11 @@ Deno.serve(async (req) => {
 
   const userIds = [...new Set(subs.map((s) => s.user_id))];
   const todays = [...groups.values()].map((g) => localNow(g.tz, now).date).sort();
-  const { data: todoRows, error: todoErr } = await db
-    .from("todos")
-    .select("*")
-    .in("user_id", userIds)
-    .not("start_time", "is", null)
+  // 리마인드 시각에만 시간 미지정 할 일까지 조회 (그 외에는 시간 지정 일정만 → 매분 조회량 최소화)
+  const anyDigest = [...groups.values()].some((g) => digestSlot(localNow(g.tz, now).min) !== null);
+  let todoQuery = db.from("todos").select("*").in("user_id", userIds);
+  if (!anyDigest) todoQuery = todoQuery.not("start_time", "is", null);
+  const { data: todoRows, error: todoErr } = await todoQuery
     .lte("date", todays[todays.length - 1])
     .or(`repeat.neq.none,date.gte.${todays[0]}`);
   if (todoErr) return Response.json({ error: todoErr.message }, { status: 500 });
@@ -165,10 +195,24 @@ Deno.serve(async (req) => {
   const due: Alarm[] = [];
   for (const g of groups.values()) {
     const { date, min } = localNow(g.tz, now);
+
+    // 10:00 · 14:00 리마인드: 오늘 해당 + 미완료 + 시간 미지정 (0건이면 발송 안 함)
+    const slot = digestSlot(min);
+    if (slot !== null) {
+      const unscheduled = todos.filter(
+        (t) => t.user_id === g.userId && !t.start_time && occursOn(t, date) && !t.completed_dates.includes(date),
+      );
+      if (unscheduled.length) {
+        // 날짜·슬롯·시간대별 1회 (발송 기록으로 Cron 중복 호출·지연 허용 구간에도 한 번만)
+        const key = `digest|${date}|${slot}|${g.tz}`;
+        due.push({ userId: g.userId, tz: g.tz, key, tag: key, phase: "digest", ...formatDigest(unscheduled) });
+      }
+    }
+
     for (const t of todos) {
       if (t.user_id !== g.userId || !occursOn(t, date) || t.completed_dates.includes(date)) continue;
       const start = toMin(t.start_time);
-      if (start === null) continue;
+      if (start === null) continue; // 시간 미지정은 위 리마인드에서 처리
       const phase = min >= start && min <= start + START_GRACE_MIN ? "start" : min >= start - LEAD_MIN && min < start ? "pre" : null;
       if (!phase) continue;
       // 앱과 같은 키·태그 → 앱이 열려 있어 먼저 띄웠어도 같은 알림이 교체될 뿐 중복 팝업 없음
@@ -219,7 +263,7 @@ Deno.serve(async (req) => {
       jobs.push(
         webpush
           .sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, {
-            TTL: a.phase === "start" ? 600 : 300,
+            TTL: a.phase === "digest" ? 1800 : a.phase === "start" ? 600 : 300,
             urgency: "high",
             topic: a.tag.replace(/[^A-Za-z0-9_-]/g, "").slice(-32),
           })
