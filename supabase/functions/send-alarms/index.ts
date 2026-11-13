@@ -72,6 +72,12 @@ const utc = (iso: string) => {
   return new Date(Date.UTC(y, m - 1, d));
 };
 const weekdayIndex = (iso: string) => (utc(iso).getUTCDay() + 6) % 7;
+/** 다음 날 (UTC 자정 기준 날짜 연산이라 시간대 밀림 없음) */
+const nextDay = (iso: string) => {
+  const d = utc(iso);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
 
 function occursOn(t: Todo, iso: string): boolean {
   if (iso < t.date) return false;
@@ -186,7 +192,8 @@ Deno.serve(async (req) => {
   let todoQuery = db.from("todos").select("*").in("user_id", userIds);
   if (!anyDigest) todoQuery = todoQuery.not("start_time", "is", null);
   const { data: todoRows, error: todoErr } = await todoQuery
-    .lte("date", todays[todays.length - 1])
+    // 자정 직후(00:00~00:04) 일정의 '5분 전' 알림을 전날 밤에 보내려면 내일 일정도 필요
+    .lte("date", nextDay(todays[todays.length - 1]))
     .or(`repeat.neq.none,date.gte.${todays[0]}`);
   if (todoErr) return Response.json({ error: todoErr.message }, { status: 500 });
   const todos = (todoRows ?? []).map(normalize);
@@ -209,25 +216,34 @@ Deno.serve(async (req) => {
       }
     }
 
-    for (const t of todos) {
-      if (t.user_id !== g.userId || !occursOn(t, date) || t.completed_dates.includes(date)) continue;
-      const start = toMin(t.start_time);
-      if (start === null) continue; // 시간 미지정은 위 리마인드에서 처리
-      const phase = min >= start && min <= start + START_GRACE_MIN ? "start" : min >= start - LEAD_MIN && min < start ? "pre" : null;
-      if (!phase) continue;
-      // 앱과 같은 키·태그 → 앱이 열려 있어 먼저 띄웠어도 같은 알림이 교체될 뿐 중복 팝업 없음
-      const base = `${t.id}|${date}|${hhmm(t.start_time)}`;
-      due.push({
-        userId: g.userId,
-        tz: g.tz,
-        key: `${base}|${phase}`,
-        tag: `${base}|${phase}`,
-        phase,
-        ...formatAlarm(t, phase, start - min),
-      });
-      // 늦게 감지된 정각 알림이면 미리 알림은 건너뜀
-      if (phase === "start") {
-        await db.from("push_alarm_log").upsert({ user_id: g.userId, alarm_key: `${base}|pre` }, { onConflict: "user_id,alarm_key", ignoreDuplicates: true });
+    // 오늘 일정 + (23:55 이후면) 내일 00:00~00:04 시작 일정의 미리 알림. 내일 일정은 시작 분에 +1440
+    const days: { day: string; offset: number }[] = [{ day: date, offset: 0 }];
+    if (min >= 24 * 60 - LEAD_MIN) days.push({ day: nextDay(date), offset: 24 * 60 });
+    for (const { day, offset } of days) {
+      for (const t of todos) {
+        if (t.user_id !== g.userId || !occursOn(t, day) || t.completed_dates.includes(day)) continue;
+        const startMin = toMin(t.start_time);
+        if (startMin === null) continue; // 시간 미지정은 위 리마인드에서 처리
+        const start = startMin + offset;
+        const phase = min >= start && min <= start + START_GRACE_MIN ? "start" : min >= start - LEAD_MIN && min < start ? "pre" : null;
+        if (!phase) continue;
+        // 태그는 앱과 같게 → 앱이 열려 있어 먼저 띄웠어도 같은 알림이 교체될 뿐 중복 팝업 없음
+        const base = `${t.id}|${day}|${hhmm(t.start_time)}`;
+        due.push({
+          userId: g.userId,
+          tz: g.tz,
+          // 발송 기록 키에 시간대 포함: 시간대가 다른 기기도 각자 현지 시각에 받도록 (같은 시간대 기기끼리는 1회)
+          key: `${base}|${phase}|${g.tz}`,
+          tag: `${base}|${phase}`,
+          phase,
+          ...formatAlarm(t, phase, start - min),
+        });
+        // 늦게 감지된 정각 알림이면 미리 알림은 건너뜀
+        if (phase === "start") {
+          await db
+            .from("push_alarm_log")
+            .upsert({ user_id: g.userId, alarm_key: `${base}|pre|${g.tz}` }, { onConflict: "user_id,alarm_key", ignoreDuplicates: true });
+        }
       }
     }
   }
