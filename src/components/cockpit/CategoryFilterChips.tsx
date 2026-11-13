@@ -35,7 +35,7 @@ export function CategoryFilterChips({
     <div
       role="group"
       aria-label="1차 태그 필터"
-      className={cn("-mx-1 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto px-1 py-0.5 scrollbar-none", className)}
+      className={cn("-mx-1 flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto px-1 py-0.5 scrollbar-none", className)}
     >
       {labels.map((c) => {
         const on = active.includes(c);
@@ -47,12 +47,14 @@ export function CategoryFilterChips({
             aria-pressed={on}
             onClick={() => onToggle(c)}
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-[background-color,color,opacity,border-color]",
+              "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-[background-color,color,border-color] duration-150",
               on
-                ? cn(st.dot, "border-transparent text-white shadow-sm")
-                : cn(st.text, "border-current/30 bg-transparent opacity-70 hover:opacity-100"),
+                ? "border-black/15 bg-black/[0.07] text-ink"
+                : "border-black/[0.08] bg-transparent text-ink-2 hover:border-black/15 hover:text-ink",
             )}
           >
+            {/* 태그 구분용 색 점 — 꺼짐 상태에서는 더 흐리게 */}
+            <span aria-hidden className={cn("size-1.5 rounded-full transition-opacity", st.dot, on ? "opacity-90" : "opacity-45")} />
             {c}
           </button>
         );

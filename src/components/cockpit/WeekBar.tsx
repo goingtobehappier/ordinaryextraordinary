@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowRightToLine, ChevronLeft, ChevronRight, Clock, Flag, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import {
   WEEKDAY_KO,
@@ -13,9 +13,8 @@ import {
   timeToMinutes,
   todayISO,
   weekDates,
-  weekdayIndex,
 } from "@/lib/date";
-import { isTodoDrag, readTodoDrag, startTodoDrag } from "@/lib/dnd";
+import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { DEADLINE_SLOT, type Todo } from "@/lib/types";
 import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
@@ -24,11 +23,6 @@ import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
 import { allDayChipStyle } from "./AllDayBanner";
 import { coversDate, useAllDay } from "@/store/allDay";
-
-const md = (iso: string) => {
-  const d = parseISODate(iso);
-  return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAY_KO[weekdayIndex(iso)]})`;
-};
 
 const byTime = (a: Todo, b: Todo) =>
   (timeToMinutes(a.start_time) ?? 9999) - (timeToMinutes(b.start_time) ?? 9999);
@@ -69,18 +63,15 @@ export function WeekBar() {
   const first = parseISODate(days[0]);
 
   const perDay = days.map((iso) => ({ iso, items: todos.filter((t) => occursOn(t, iso) && (!filtering || filter.includes(t.category))).sort(byTime) }));
-  const weekItems = perDay.flatMap((d) => d.items.map((t) => ({ t, iso: d.iso })));
-  const deadlines = weekItems.filter(({ t, iso }) => t.category === deadlineLabel && !isDoneOn(t, iso));
-  const timed = weekItems.filter(({ t }) => t.start_time).length;
 
   return (
     <GlassPanel className="relative z-20 flex min-w-0 shrink-0 flex-col gap-3 px-2.5 pb-3 pt-3 sm:px-4 sm:pb-4">
-      {/* 요약: 마감 · 이동 필요 · 지정 시간 (좁은 화면에서는 줄바꿈) */}
-      <div className="flex min-w-0 flex-wrap items-center gap-2 pl-1 text-xs">
+      {/* 월 · 주 이동 · 오늘 · 1차 태그 필터 (좁은 화면에서는 줄바꿈) */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2 pl-1 text-xs">
         <span className="shrink-0 whitespace-nowrap text-[15px] font-semibold tracking-[-0.01em]">
           {first.getFullYear()}년 {first.getMonth() + 1}월
         </span>
-        <div className="mr-2 flex shrink-0">
+        <div className="flex shrink-0 items-center">
           <GlassButton className="px-1.5 py-1" onClick={() => setSelectedDate(addDays(selectedDate, -7))} aria-label="이전 주">
             <ChevronLeft className="size-4" />
           </GlassButton>
@@ -88,28 +79,14 @@ export function WeekBar() {
             <ChevronRight className="size-4" />
           </GlassButton>
         </div>
+        <GlassButton className="shrink-0 whitespace-nowrap py-1 text-xs" onClick={() => setSelectedDate(today)}>
+          오늘
+        </GlassButton>
 
-        <CategoryFilterChips value={filter} onToggle={toggleFilter} onClear={clearFilter} className="mr-1" />
+        {/* 1차 태그 필터 — 남는 폭을 쓰고, 좁은 화면에서는 아랫줄 전체 폭 + 가로 스크롤 */}
+        <span aria-hidden className="mx-1 hidden h-4 w-px shrink-0 bg-black/10 sm:block" />
+        <CategoryFilterChips value={filter} onToggle={toggleFilter} onClear={clearFilter} className="max-sm:w-full" />
 
-        <SummaryPill tone="red" icon={<Flag className="size-3.5" />} label={deadlineLabel} count={deadlines.length}>
-          {deadlines.slice(0, 3).map(({ t, iso }) => (
-            <button
-              key={`${t.id}${iso}`}
-              onClick={() => setSelectedDate(iso)}
-              title={`${md(iso)} ${t.title}`}
-              className="hidden min-w-0 max-w-[180px] truncate rounded-md bg-white/70 px-1.5 py-0.5 font-medium text-[#c4271d] hover:bg-white md:block"
-            >
-              {md(iso)} {t.title}
-            </button>
-          ))}
-          {deadlines.length > 3 && <span className="hidden shrink-0 whitespace-nowrap text-ink-2 md:inline">외 {deadlines.length - 3}건</span>}
-        </SummaryPill>
-
-        <OverduePill />
-
-        <SummaryPill tone="blue" icon={<Clock className="size-3.5" />} label="시간 지정" count={timed}>
-          <span className="whitespace-nowrap text-ink-2">미지정 {weekItems.length - timed}건</span>
-        </SummaryPill>
       </div>
 
       <div className="grid grid-cols-7 gap-1 sm:gap-1.5 md:gap-2.5">
@@ -251,115 +228,3 @@ export function WeekBar() {
   );
 }
 
-function SummaryPill({
-  tone,
-  icon,
-  label,
-  count,
-  children,
-}: {
-  tone: "red" | "blue";
-  icon: React.ReactNode;
-  label: string;
-  count: number;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1",
-        tone === "red" ? "bg-[#ff3b30]/8 text-[#c4271d]" : "bg-apple-blue/8 text-[#0062cc]",
-      )}
-    >
-      <span className="shrink-0">{icon}</span>
-      <span className="shrink-0 whitespace-nowrap font-semibold">
-        {label} {count}
-      </span>
-      {count > 0 && <div className="flex min-w-0 items-center gap-1">{children}</div>}
-    </div>
-  );
-}
-
-/** 이동 필요: 지난 날짜의 미완료 일정. 클릭하면 목록 + 오늘로 옮기기 */
-function OverduePill() {
-  const styleOf = useCategoryStyle();
-  const overdue = useCockpit((s) => s.overdue);
-  const moveTodoToDate = useCockpit((s) => s.moveTodoToDate);
-  const setSelectedDate = useCockpit((s) => s.setSelectedDate);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const today = todayISO();
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        disabled={overdue.length === 0}
-        className={cn(
-          "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 font-semibold transition-colors",
-          overdue.length ? "bg-[#ff9500]/12 text-[#b86b00] hover:bg-[#ff9500]/20" : "bg-black/[0.04] text-ink-2",
-        )}
-        aria-expanded={open}
-      >
-        <TriangleAlert className="size-3.5" />
-        이동 필요 {overdue.length}
-      </button>
-
-      {open && overdue.length > 0 && (
-        <div className="absolute left-0 top-9 z-50 w-[min(380px,calc(100vw-48px))] rounded-xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-1">
-            <span className="min-w-0 break-keep text-xs text-ink-2">지난 날짜의 미완료 일정 · 날짜 칸으로 끌어다 놓아도 돼요</span>
-            <GlassButton
-              variant="primary"
-              className="shrink-0 whitespace-nowrap px-2 py-1 text-xs"
-              onClick={() => {
-                overdue.forEach((t) => void moveTodoToDate(t, today));
-                setOpen(false);
-              }}
-            >
-              모두 오늘로
-            </GlassButton>
-          </div>
-          <ul className="max-h-72 space-y-0.5 overflow-y-auto scroll-thin">
-            {overdue.map((t) => (
-              <li
-                key={t.id}
-                draggable
-                onDragStart={(e) => startTodoDrag(e, t)}
-                className="flex cursor-grab items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/[0.04]"
-              >
-                <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-semibold", styleOf(t.category).badge)}>
-                  {t.category}
-                </span>
-                <button
-                  className="min-w-0 flex-1 truncate text-left text-sm"
-                  onClick={() => {
-                    setSelectedDate(t.date);
-                    setOpen(false);
-                  }}
-                >
-                  {t.title}
-                </button>
-                <span className="shrink-0 text-xs tabular-nums text-[#b86b00]">{md(t.date)}</span>
-                <button
-                  onClick={() => void moveTodoToDate(t, today)}
-                  className="flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-medium text-apple-blue hover:bg-apple-blue/10"
-                >
-                  <ArrowRightToLine className="size-3" />
-                  오늘
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
