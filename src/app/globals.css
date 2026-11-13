@@ -72,6 +72,14 @@ body {
   background: rgb(0 122 255 / 0.2);
 }
 
+/* 스크롤바 숨김 (가로 스크롤 칩 목록) */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* 얇은 macOS 스타일 스크롤바 */
 .scroll-thin {
   scrollbar-width: thin;

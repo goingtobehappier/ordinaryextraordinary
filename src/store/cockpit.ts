@@ -127,6 +127,8 @@ type CockpitState = {
   selectedTodoId: string | null;
   activeTags: string[];
   activeCategories: Category[];
+  /** 월간 보기 상단 1차 태그 필터 (비어 있으면 전체) */
+  monthCategories: Category[];
   searchQuery: string;
   shortcuts: Record<ShortcutAction, string>;
   shortcutsOpen: boolean;
@@ -159,6 +161,8 @@ type CockpitState = {
   selectTodo: (id: string | null) => void;
   toggleTag: (tag: string) => void;
   toggleCategory: (c: Category) => void;
+  toggleMonthCategory: (c: Category) => void;
+  clearMonthCategories: () => void;
   clearTags: () => void;
   setSearchQuery: (q: string) => void;
   setShortcut: (action: ShortcutAction, combo: string) => void;
@@ -222,6 +226,7 @@ export const useCockpit = create<CockpitState>()(
       selectedTodoId: null,
       activeTags: [],
       activeCategories: [],
+      monthCategories: [],
       searchQuery: "",
       shortcuts: DEFAULT_SHORTCUTS,
       shortcutsOpen: false,
@@ -271,6 +276,13 @@ export const useCockpit = create<CockpitState>()(
             ? s.activeCategories.filter((x) => x !== c)
             : [...s.activeCategories, c],
         })),
+      toggleMonthCategory: (c) =>
+        set((s) => ({
+          monthCategories: s.monthCategories.includes(c)
+            ? s.monthCategories.filter((x) => x !== c)
+            : [...s.monthCategories, c],
+        })),
+      clearMonthCategories: () => set({ monthCategories: [] }),
       clearTags: () => set({ activeTags: [], activeCategories: [] }),
       setSearchQuery: (q) => set({ searchQuery: q }),
       setShortcut: (action, combo) =>
@@ -497,6 +509,7 @@ export const useCockpit = create<CockpitState>()(
         shortcuts: s.shortcuts,
         activeTags: s.activeTags,
         activeCategories: s.activeCategories,
+        monthCategories: s.monthCategories,
         // 검색 뷰는 저장하지 않고 원래 보기로 복원
         view: isFullView(s.view) ? s.prevView : s.view,
         prevView: s.prevView,

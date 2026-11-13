@@ -14,22 +14,23 @@ export const DEFAULT_CATEGORY: Category = DEFAULT_CATEGORIES[WORK_SLOT];
 /** 마감 집계(주간·월간 마감 표시)에 쓰이는 슬롯 — 기본 이름 '마감' */
 export const DEADLINE_SLOT = 3;
 
-export type CategoryStyle = { badge: string; block: string; dot: string };
+export type CategoryStyle = { badge: string; block: string; dot: string; text: string };
 
 /** 슬롯별 색상 (badge: 목록용, block: 타임블록용, dot: 캘린더용) */
 export const SLOT_STYLES: CategoryStyle[] = [
-  { badge: "bg-[#007aff]/12 text-[#0062cc]", block: "border-[#007aff] bg-[#007aff]/15 text-[#0057b8]", dot: "bg-[#007aff]" },
-  { badge: "bg-[#af52de]/12 text-[#8e3bb8]", block: "border-[#af52de] bg-[#af52de]/15 text-[#7f2fa8]", dot: "bg-[#af52de]" },
-  { badge: "bg-[#ff9500]/14 text-[#b86b00]", block: "border-[#ff9500] bg-[#ff9500]/15 text-[#a35f00]", dot: "bg-[#ff9500]" },
-  { badge: "bg-[#ff3b30]/12 text-[#d1281e]", block: "border-[#ff3b30] bg-[#ff3b30]/14 text-[#c4271d]", dot: "bg-[#ff3b30]" },
-  { badge: "bg-[#5856d6]/12 text-[#4644b8]", block: "border-[#5856d6] bg-[#5856d6]/15 text-[#3f3da8]", dot: "bg-[#5856d6]" },
-  { badge: "bg-[#00c7be]/14 text-[#00857f]", block: "border-[#00c7be] bg-[#00c7be]/15 text-[#007a74]", dot: "bg-[#00c7be]" },
+  { badge: "bg-[#007aff]/12 text-[#0062cc]", block: "border-[#007aff] bg-[#007aff]/15 text-[#0057b8]", dot: "bg-[#007aff]", text: "text-[#0062cc]" },
+  { badge: "bg-[#af52de]/12 text-[#8e3bb8]", block: "border-[#af52de] bg-[#af52de]/15 text-[#7f2fa8]", dot: "bg-[#af52de]", text: "text-[#8e3bb8]" },
+  { badge: "bg-[#ff9500]/14 text-[#b86b00]", block: "border-[#ff9500] bg-[#ff9500]/15 text-[#a35f00]", dot: "bg-[#ff9500]", text: "text-[#b86b00]" },
+  { badge: "bg-[#ff3b30]/12 text-[#d1281e]", block: "border-[#ff3b30] bg-[#ff3b30]/14 text-[#c4271d]", dot: "bg-[#ff3b30]", text: "text-[#d1281e]" },
+  { badge: "bg-[#5856d6]/12 text-[#4644b8]", block: "border-[#5856d6] bg-[#5856d6]/15 text-[#3f3da8]", dot: "bg-[#5856d6]", text: "text-[#4644b8]" },
+  { badge: "bg-[#00c7be]/14 text-[#00857f]", block: "border-[#00c7be] bg-[#00c7be]/15 text-[#007a74]", dot: "bg-[#00c7be]", text: "text-[#00857f]" },
 ];
 /** 현재 이름 목록에 없는 값(동기화 전 잔여 데이터 등) */
 const UNKNOWN_STYLE: CategoryStyle = {
   badge: "bg-black/5 text-ink-2",
   block: "border-[#8e8e93] bg-[#8e8e93]/15 text-[#555]",
   dot: "bg-[#8e8e93]",
+  text: "text-ink-2",
 };
 
 export function categoryStyle(labels: readonly string[], c: Category): CategoryStyle {

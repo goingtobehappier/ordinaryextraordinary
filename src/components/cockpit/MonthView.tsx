@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Flag, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, Loader2, X } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import {
   WEEKDAY_KO,
@@ -27,7 +27,14 @@ const MAX_ITEMS = 3;
 /** 월간 보기: 클릭 = 날짜 선택(우측 과업 리스트·노트 연동, 선택 유지), 더블클릭 = 일간 보기로 열기 */
 export function MonthView() {
   const styleOf = useCategoryStyle();
-  const deadlineLabel = useCategoryLabels()[DEADLINE_SLOT];
+  const labels = useCategoryLabels();
+  const deadlineLabel = labels[DEADLINE_SLOT];
+  // 1차 태그 필터: 비어 있으면 전체. 이름이 바뀌면 스토어에서 함께 바뀌고, 현재 이름에 없는 값은 무시
+  const storedFilter = useCockpit((s) => s.monthCategories);
+  const toggleFilter = useCockpit((s) => s.toggleMonthCategory);
+  const clearFilter = useCockpit((s) => s.clearMonthCategories);
+  const filter = storedFilter.filter((c) => labels.includes(c));
+  const filtering = filter.length > 0;
   const selectedDate = useCockpit((s) => s.selectedDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
   const selectTodo = useCockpit((s) => s.selectTodo);
@@ -66,8 +73,46 @@ export function MonthView() {
         <GlassButton className="shrink-0 whitespace-nowrap text-xs" onClick={() => setSelectedDate(today)}>
           오늘
         </GlassButton>
+        {/* 1차 태그 필터 (토글 · 다중 선택). 좁은 화면에서는 가로 스크롤 */}
+        <div
+          role="group"
+          aria-label="1차 태그 필터"
+          className="-mx-1 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto px-1 py-0.5 scrollbar-none"
+        >
+          {labels.map((c) => {
+            const on = filter.includes(c);
+            const st = styleOf(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleFilter(c)}
+                className={cn(
+                  "shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-[background-color,color,opacity,border-color]",
+                  on
+                    ? cn(st.dot, "border-transparent text-white shadow-sm")
+                    : cn(st.text, "border-current/30 bg-transparent opacity-70 hover:opacity-100"),
+                )}
+              >
+                {c}
+              </button>
+            );
+          })}
+          {filtering && (
+            <button
+              type="button"
+              onClick={clearFilter}
+              aria-label="태그 필터 해제"
+              title="태그 필터 해제"
+              className="flex shrink-0 items-center rounded-full p-1 text-ink-2 hover:bg-black/5 hover:text-ink"
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
         {loading && <Loader2 className="size-4 shrink-0 animate-spin text-ink-2" />}
-        <span className="ml-auto hidden min-w-0 truncate text-xs text-ink-2 md:block" title="클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기">
+        <span className="ml-auto hidden min-w-0 truncate text-xs text-ink-2 2xl:block" title="클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기">
           클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기
         </span>
       </div>
@@ -83,13 +128,14 @@ export function MonthView() {
       <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1 p-1.5 sm:gap-1.5 sm:p-3">
         {days.map((iso, i) => {
           const items = todos
-            .filter((t) => occursOn(t, iso))
+            .filter((t) => occursOn(t, iso) && (!filtering || filter.includes(t.category)))
             .sort((a, b) => (timeToMinutes(a.start_time) ?? 9999) - (timeToMinutes(b.start_time) ?? 9999));
           const inMonth = parseISODate(iso).getMonth() === month;
           const selected = iso === selectedDate;
           const due = items.filter((t) => t.category === deadlineLabel && !isDoneOn(t, iso)).length;
           // 외부 일정은 할 일 다음 남는 칸에 표시, 넘치는 건수는 '더보기'에 합산
-          const external = externalOn(iso);
+          // 태그 필터 중에는 태그가 없는 외부 캘린더 일정은 숨김
+          const external = filtering ? [] : externalOn(iso);
           const externalShown = external.slice(0, Math.max(0, MAX_ITEMS - items.length));
           const hidden = items.length + external.length - Math.min(items.length, MAX_ITEMS) - externalShown.length;
           return (
