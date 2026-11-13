@@ -9,37 +9,45 @@ const ARC_ANGLES = [
 ];
 const ARC_WORD = "ORDINARYEXTRAORDINARY";
 
-/** 동그란 안경 + 눈동자 (흑백 플랫). 좌표 원점 = 안경 중심 */
-function GlassesShape() {
+/** 원 경로 (evenodd 구멍용) */
+const disc = (cx: number, cy: number, r: number) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
+
+/**
+ * 동그란 안경 + 눈동자 (흑백 플랫). 좌표 원점 = 안경 중심.
+ * compact: 20~26px 크기용 — 선을 굵게, 눈동자를 키워 작은 크기에서도 글자 굵기와 어울리게.
+ */
+function GlassesShape({ compact = false }: { compact?: boolean }) {
+  const stroke = compact ? 34 : 21;
+  const lensR = 106.5 - stroke / 2; // 바깥 지름은 원본과 동일하게 유지
+  const pupilR = compact ? 44 : 38;
+  const hi = compact ? { dx: 18, dy: -18, r: 15 } : { dx: 19, dy: -18.5, r: 13 };
   return (
     <>
-      <g fill="none" stroke="currentColor" strokeWidth="21" strokeLinecap="round">
-        <circle cx="-124" r="91.5" />
-        <circle cx="124" r="91.5" />
-        <path d="M-32-27.5Q1-41.5 34-27.5M-238 0h22M238 0h-22" />
+      <g fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round">
+        <circle cx="-124" r={lensR} />
+        <circle cx="124" r={lensR} />
+        <path d={`M-32-27.5Q1-41.5 34-27.5M${-238 + (compact ? 4 : 0)} 0h22M${238 - (compact ? 4 : 0)} 0h-22`} />
       </g>
       {/* 눈동자 + 하이라이트(구멍) */}
       <path
         fill="currentColor"
         fillRule="evenodd"
-        d="M-162 0a38 38 0 1 0 76 0a38 38 0 1 0-76 0ZM-119-18.5a13 13 0 1 0 26 0a13 13 0 1 0-26 0ZM86.5 0a38 38 0 1 0 76 0a38 38 0 1 0-76 0ZM131-18.5a13 13 0 1 0 26 0a13 13 0 1 0-26 0Z"
+        d={[-124, 124.5].map((cx) => disc(cx, 0, pupilR) + disc(cx + hi.dx, hi.dy, hi.r)).join("")}
       />
     </>
   );
 }
 
-/** 안경 심볼만 (GNB 등 작은 자리). height 기준 크기 */
-export function BrandMark({ height = 24, className }: { height?: number; className?: string }) {
+/** 안경 심볼만 (GNB 등 작은 자리). 크기는 className의 너비(w-*)로 지정, 높이는 비율 자동 */
+export function BrandMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="-252 -106 504 212"
-      height={height}
-      width={(height * 504) / 212}
-      className={cn("shrink-0 text-ink", className)}
+      viewBox="-256 -110 512 220"
+      className={cn("block h-auto w-6 shrink-0 text-ink", className)}
       role="img"
       aria-label={`${BRAND_NAME} 로고`}
     >
-      <GlassesShape />
+      <GlassesShape compact />
     </svg>
   );
 }
@@ -78,11 +86,11 @@ export function BrandWordmark({ className }: { className?: string }) {
 }
 
 /** [안경 심볼] + [워드마크] */
-export function BrandLockup({ markHeight = 24, textClassName }: { markHeight?: number; textClassName?: string }) {
+export function BrandLockup({ markClassName, textClassName }: { markClassName?: string; textClassName?: string }) {
   return (
-    <span className="inline-flex items-center gap-2.5">
-      <BrandMark height={markHeight} />
-      <BrandWordmark className={textClassName} />
+    <span className="inline-flex shrink-0 flex-nowrap items-center gap-1.5">
+      <BrandMark className={markClassName} />
+      <BrandWordmark className={cn("shrink-0", textClassName)} />
     </span>
   );
 }
