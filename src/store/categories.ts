@@ -47,11 +47,13 @@ export const useCategories = create<CategoriesState>()((set, get) => ({
     const labels = error || !data ? [...DEFAULT_CATEGORIES] : normalizeLabels(data.labels);
     set({ labels, loaded: true });
     // 저장된 필터에 더 이상 없는 이름(다른 기기에서 변경)이 남아 있으면 제거
-    const { activeCategories, monthCategories } = useCockpit.getState();
-    if ([...activeCategories, ...monthCategories].some((c) => !labels.includes(c))) {
+    const { activeCategories, monthCategories, summaryCategories } = useCockpit.getState();
+    if ([...activeCategories, ...monthCategories, ...summaryCategories].some((c) => !labels.includes(c))) {
+      const keep = (list: Category[]) => list.filter((c) => labels.includes(c));
       useCockpit.setState({
-        activeCategories: activeCategories.filter((c) => labels.includes(c)),
-        monthCategories: monthCategories.filter((c) => labels.includes(c)),
+        activeCategories: keep(activeCategories),
+        monthCategories: keep(monthCategories),
+        summaryCategories: keep(summaryCategories),
       });
     }
   },
@@ -83,6 +85,7 @@ function applyRenameLocally(old: Category, next: Category) {
     overdue: s.overdue.map(swap),
     activeCategories: s.activeCategories.map((c) => (c === old ? next : c)),
     monthCategories: s.monthCategories.map((c) => (c === old ? next : c)),
+    summaryCategories: s.summaryCategories.map((c) => (c === old ? next : c)),
     rev: s.rev + 1,
   }));
 }

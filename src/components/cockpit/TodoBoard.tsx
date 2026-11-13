@@ -40,7 +40,8 @@ import { formatCombo } from "@/hooks/useHotkeys";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { CategoryBadge, GlassButton, GlassInput, GlassPanel, Kbd, TagChip } from "@/components/ui/Glass";
 import { CategoryPicker } from "./CategoryPicker";
-import { useCategories, useCategoryLabels, useCategoryStyle } from "@/store/categories";
+import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
+import { useCategories } from "@/store/categories";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { TimeBlocks } from "./TimeBlocks";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
@@ -66,8 +67,6 @@ export function parseTags(raw: string): string[] {
 }
 
 export function TodoBoard() {
-  const styleOf = useCategoryStyle();
-  const CATEGORIES = useCategoryLabels();
   const openCategoryEditor = useCategories((s) => s.setEditorOpen);
   const view = useCockpit((s) => s.view);
   const selectedDate = useCockpit((s) => s.selectedDate);
@@ -78,6 +77,7 @@ export function TodoBoard() {
   const storedActiveCategories = useCockpit((s) => s.activeCategories);
   const toggleTag = useCockpit((s) => s.toggleTag);
   const toggleCategory = useCockpit((s) => s.toggleCategory);
+  const clearCategories = useCockpit((s) => s.clearCategories);
   const clearTags = useCockpit((s) => s.clearTags);
   const query = useCockpit((s) => s.searchQuery);
   const loading = useCockpit((s) => s.loading);
@@ -103,9 +103,10 @@ export function TodoBoard() {
   // 2차 태그: 전체 할 일 기준 최근 사용순 상위 5개만 노출
   const visibleTags = useMemo(() => recentTags.slice(0, RECENT_TAG_LIMIT), [recentTags]);
   // 노출되지 않은 태그가 필터로 남아 목록을 숨기지 않도록, 보이는 태그만 필터에 적용
-  // 모바일은 태그 필터 줄을 숨기므로, 해제할 수 없는 필터가 목록을 가리지 않도록 필터를 적용하지 않음
+  // 모바일은 2차 태그 필터 줄을 숨기므로, 해제할 수 없는 2차 태그 필터는 적용하지 않음
+  // 1차 태그 필터는 모바일에서도 칩(일간: 이 헤더 / 주간: 주간 바)으로 보이므로 그대로 적용
   const activeTags = isMobile ? [] : storedActiveTags.filter((t) => visibleTags.includes(t));
-  const activeCategories = isMobile ? [] : storedActiveCategories;
+  const activeCategories = useActiveCategoryFilter(storedActiveCategories);
 
   const q = query.trim().toLowerCase().replace(/^#/, "");
   const visible = dayTodos.filter(
@@ -194,6 +195,11 @@ export function TodoBoard() {
           </button>
         )}
 
+        {/* 모바일 일간: 1차 태그 필터만 아랫줄 전체 폭 + 가로 스크롤 (주간은 주간 바에 있음) */}
+        {isMobile && view === "day" && (
+          <CategoryFilterChips value={activeCategories} onToggle={toggleCategory} onClear={clearCategories} className="w-full" />
+        )}
+
         {/* 태그 필터: 모바일(앱)에서는 줄 전체를 렌더링하지 않음 / 소형 화면: 아랫줄 전체 폭 + 가로 스크롤 / 데스크톱: 우측 정렬 */}
         {!isMobile && (
         <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto pb-0.5 scroll-thin xl:ml-auto xl:w-auto xl:max-w-[66%]">
@@ -207,19 +213,15 @@ export function TodoBoard() {
           >
             전체
           </button>
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => toggleCategory(c)}
-              className={cn(
-                "shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold transition-[box-shadow,opacity]",
-                styleOf(c).badge,
-                activeCategories.includes(c) ? "ring-2 ring-current" : activeCategories.length && "opacity-50",
-              )}
-            >
-              {c}
-            </button>
-          ))}
+          {/* 주간 보기에서는 위 주간 바의 칩이 같은 필터를 다루므로 중복 표시하지 않음 */}
+          {view !== "week" && (
+            <CategoryFilterChips
+              value={activeCategories}
+              onToggle={toggleCategory}
+              onClear={clearCategories}
+              className="mx-0 shrink-0 overflow-visible px-0"
+            />
+          )}
           <button
             onClick={() => openCategoryEditor(true)}
             title="1차 태그 이름 편집"

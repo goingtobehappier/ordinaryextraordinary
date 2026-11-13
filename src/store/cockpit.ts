@@ -129,6 +129,8 @@ type CockpitState = {
   activeCategories: Category[];
   /** 월간 보기 상단 1차 태그 필터 (비어 있으면 전체) */
   monthCategories: Category[];
+  /** 요약 보기 1차 태그 필터 (비어 있으면 전체) */
+  summaryCategories: Category[];
   searchQuery: string;
   shortcuts: Record<ShortcutAction, string>;
   shortcutsOpen: boolean;
@@ -163,6 +165,10 @@ type CockpitState = {
   toggleCategory: (c: Category) => void;
   toggleMonthCategory: (c: Category) => void;
   clearMonthCategories: () => void;
+  toggleSummaryCategory: (c: Category) => void;
+  clearSummaryCategories: () => void;
+  /** 일간·주간 1차 태그 필터만 해제 (2차 태그 필터는 유지) */
+  clearCategories: () => void;
   clearTags: () => void;
   setSearchQuery: (q: string) => void;
   setShortcut: (action: ShortcutAction, combo: string) => void;
@@ -227,6 +233,7 @@ export const useCockpit = create<CockpitState>()(
       activeTags: [],
       activeCategories: [],
       monthCategories: [],
+      summaryCategories: [],
       searchQuery: "",
       shortcuts: DEFAULT_SHORTCUTS,
       shortcutsOpen: false,
@@ -283,6 +290,14 @@ export const useCockpit = create<CockpitState>()(
             : [...s.monthCategories, c],
         })),
       clearMonthCategories: () => set({ monthCategories: [] }),
+      toggleSummaryCategory: (c) =>
+        set((s) => ({
+          summaryCategories: s.summaryCategories.includes(c)
+            ? s.summaryCategories.filter((x) => x !== c)
+            : [...s.summaryCategories, c],
+        })),
+      clearSummaryCategories: () => set({ summaryCategories: [] }),
+      clearCategories: () => set({ activeCategories: [] }),
       clearTags: () => set({ activeTags: [], activeCategories: [] }),
       setSearchQuery: (q) => set({ searchQuery: q }),
       setShortcut: (action, combo) =>
@@ -510,6 +525,7 @@ export const useCockpit = create<CockpitState>()(
         activeTags: s.activeTags,
         activeCategories: s.activeCategories,
         monthCategories: s.monthCategories,
+        summaryCategories: s.summaryCategories,
         // 검색 뷰는 저장하지 않고 원래 보기로 복원
         view: isFullView(s.view) ? s.prevView : s.view,
         prevView: s.prevView,

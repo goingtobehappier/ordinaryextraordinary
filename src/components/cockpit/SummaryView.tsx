@@ -17,6 +17,7 @@ import { useCockpit } from "@/store/cockpit";
 import { WEEKDAY_KO, isDoneOn, occursOn, timeToMinutes, weekdayIndex } from "@/lib/date";
 import { normalizeTodo, type Todo } from "@/lib/types";
 import { useCategories } from "@/store/categories";
+import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
 import { isMissingColumn, toSubtasks, type Detail } from "@/lib/todoDetails";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel, Kbd } from "@/components/ui/Glass";
@@ -152,6 +153,13 @@ export function SummaryView() {
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
   const selectedDate = useCockpit((s) => s.selectedDate);
   const liveTodos = useCockpit((s) => s.todos);
+  // 1차 태그 필터 (요약 전용) — 복사·인쇄도 걸러진 결과 그대로
+  const storedFilter = useCockpit((s) => s.summaryCategories);
+  const toggleFilter = useCockpit((s) => s.toggleSummaryCategory);
+  const clearFilter = useCockpit((s) => s.clearSummaryCategories);
+  const filter = useActiveCategoryFilter(storedFilter);
+  // 이름에는 쉼표를 쓸 수 없으므로 구분자로 사용 (배열 대신 문자열로 의존성 비교)
+  const filterKey = filter.join(",");
 
   const [data, setData] = useState<Awaited<ReturnType<typeof fetchSummary>> | null>(null);
   // 마지막으로 응답을 받은 요청 키 — 현재 키와 다르면 로딩 중
@@ -183,10 +191,12 @@ export function SummaryView() {
     if (!data) return [];
     // 모달에서 수정한 값이 바로 보이도록 스토어의 최신 값을 우선
     const live = new Map(liveTodos.map((t) => [t.id, t]));
-    const todos = data.todos.map((t) => live.get(t.id) ?? t);
-    const list = [...buildDays(todos, data.notes, range.start, range.end).values()];
+    const active = filterKey ? filterKey.split(",") : [];
+    const todos = data.todos.map((t) => live.get(t.id) ?? t).filter((t) => !active.length || active.includes(t.category));
+    // 필터 중에는 걸러진 할 일이 있는 날만 (메모만 있는 날 제외)
+    const list = [...buildDays(todos, data.notes, range.start, range.end).values()].filter((d) => !active.length || d.items.length);
     return list.sort((a, b) => (sort === "desc" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)));
-  }, [data, liveTodos, range.start, range.end, sort]);
+  }, [data, liveTodos, range.start, range.end, sort, filterKey]);
 
   const totals = useMemo(() => {
     const items = days.flatMap((d) => d.items);
@@ -221,6 +231,8 @@ export function SummaryView() {
           {loading && data && <Loader2 className="size-4 animate-spin text-ink-2" />}
         </div>
 
+        <CategoryFilterChips value={filter} onToggle={toggleFilter} onClear={clearFilter} />
+
         <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
           <DateRangeBar range={range} onChange={setRange} />
           <GlassButton onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))} className="text-xs" title="정렬 순서 전환">
@@ -242,7 +254,7 @@ export function SummaryView() {
       <PrintHeader
         title="업무 요약"
         range={range}
-        meta={`${days.length}일 · 업무 ${totals.tasks}건 · 완료 ${totals.done}건`}
+        meta={`${days.length}일 · 업무 ${totals.tasks}건 · 완료 ${totals.done}건${filter.length ? ` · 1차 태그: ${filter.join(", ")}` : ""}`}
       />
 
       {data && data.warnings.length > 0 && (

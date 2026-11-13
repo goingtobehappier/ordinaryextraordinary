@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Flag, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, Loader2 } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import {
   WEEKDAY_KO,
@@ -20,6 +20,7 @@ import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { useDropToDate } from "./WeekBar";
+import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
 import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
 
 const MAX_ITEMS = 3;
@@ -33,7 +34,7 @@ export function MonthView() {
   const storedFilter = useCockpit((s) => s.monthCategories);
   const toggleFilter = useCockpit((s) => s.toggleMonthCategory);
   const clearFilter = useCockpit((s) => s.clearMonthCategories);
-  const filter = storedFilter.filter((c) => labels.includes(c));
+  const filter = useActiveCategoryFilter(storedFilter);
   const filtering = filter.length > 0;
   const selectedDate = useCockpit((s) => s.selectedDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
@@ -74,43 +75,7 @@ export function MonthView() {
           오늘
         </GlassButton>
         {/* 1차 태그 필터 (토글 · 다중 선택). 좁은 화면에서는 가로 스크롤 */}
-        <div
-          role="group"
-          aria-label="1차 태그 필터"
-          className="-mx-1 flex min-w-0 max-w-full items-center gap-1 overflow-x-auto px-1 py-0.5 scrollbar-none"
-        >
-          {labels.map((c) => {
-            const on = filter.includes(c);
-            const st = styleOf(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleFilter(c)}
-                className={cn(
-                  "shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-[background-color,color,opacity,border-color]",
-                  on
-                    ? cn(st.dot, "border-transparent text-white shadow-sm")
-                    : cn(st.text, "border-current/30 bg-transparent opacity-70 hover:opacity-100"),
-                )}
-              >
-                {c}
-              </button>
-            );
-          })}
-          {filtering && (
-            <button
-              type="button"
-              onClick={clearFilter}
-              aria-label="태그 필터 해제"
-              title="태그 필터 해제"
-              className="flex shrink-0 items-center rounded-full p-1 text-ink-2 hover:bg-black/5 hover:text-ink"
-            >
-              <X className="size-3" />
-            </button>
-          )}
-        </div>
+        <CategoryFilterChips value={filter} onToggle={toggleFilter} onClear={clearFilter} />
         {loading && <Loader2 className="size-4 shrink-0 animate-spin text-ink-2" />}
         <span className="ml-auto hidden min-w-0 truncate text-xs text-ink-2 2xl:block" title="클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기">
           클릭: 날짜 선택 · 더블클릭: 일간 보기 · 할 일을 다른 날짜로 끌어 옮기기

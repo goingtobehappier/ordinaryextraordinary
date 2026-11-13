@@ -18,6 +18,7 @@ import {
 import { isTodoDrag, readTodoDrag, startTodoDrag } from "@/lib/dnd";
 import { DEADLINE_SLOT, type Todo } from "@/lib/types";
 import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
+import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
@@ -56,12 +57,18 @@ export function WeekBar() {
   const externalOn = useExternalEventsByDate();
   const sourceColors = useSourceColors();
   const allDayEvents = useAllDay((s) => s.events);
+  // 1차 태그 필터 — 일간·주간 공용(activeCategories): 주간 카드와 아래 목록·타임블록이 함께 걸러짐
+  const storedFilter = useCockpit((s) => s.activeCategories);
+  const toggleFilter = useCockpit((s) => s.toggleCategory);
+  const clearFilter = useCockpit((s) => s.clearCategories);
+  const filter = useActiveCategoryFilter(storedFilter);
+  const filtering = filter.length > 0;
 
   const days = weekDates(selectedDate);
   const today = todayISO();
   const first = parseISODate(days[0]);
 
-  const perDay = days.map((iso) => ({ iso, items: todos.filter((t) => occursOn(t, iso)).sort(byTime) }));
+  const perDay = days.map((iso) => ({ iso, items: todos.filter((t) => occursOn(t, iso) && (!filtering || filter.includes(t.category))).sort(byTime) }));
   const weekItems = perDay.flatMap((d) => d.items.map((t) => ({ t, iso: d.iso })));
   const deadlines = weekItems.filter(({ t, iso }) => t.category === deadlineLabel && !isDoneOn(t, iso));
   const timed = weekItems.filter(({ t }) => t.start_time).length;
@@ -81,6 +88,8 @@ export function WeekBar() {
             <ChevronRight className="size-4" />
           </GlassButton>
         </div>
+
+        <CategoryFilterChips value={filter} onToggle={toggleFilter} onClear={clearFilter} className="mr-1" />
 
         <SummaryPill tone="red" icon={<Flag className="size-3.5" />} label={deadlineLabel} count={deadlines.length}>
           {deadlines.slice(0, 3).map(({ t, iso }) => (
@@ -108,7 +117,8 @@ export function WeekBar() {
           const done = items.filter((t) => isDoneOn(t, iso)).length;
           const dueCount = items.filter((t) => t.category === deadlineLabel && !isDoneOn(t, iso)).length;
           const timedItems = items.filter((t) => t.start_time);
-          const external = externalOn(iso);
+          // 태그 필터 중에는 태그가 없는 외부 캘린더 일정은 숨김
+          const external = filtering ? [] : externalOn(iso);
           const allDay = allDayEvents.filter((e) => coversDate(e, iso));
           // 종일 일정 칩이 있으면 일정 줄을 1줄로 줄여 카드 높이 유지
           const rows = allDay.length ? 1 : 2;
