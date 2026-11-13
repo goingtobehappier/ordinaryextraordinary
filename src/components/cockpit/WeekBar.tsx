@@ -16,7 +16,8 @@ import {
   weekdayIndex,
 } from "@/lib/date";
 import { isTodoDrag, readTodoDrag, startTodoDrag } from "@/lib/dnd";
-import { CATEGORY_STYLE, type Todo } from "@/lib/types";
+import { DEADLINE_SLOT, type Todo } from "@/lib/types";
+import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
@@ -45,6 +46,8 @@ export function useDropToDate() {
 }
 
 export function WeekBar() {
+  const styleOf = useCategoryStyle();
+  const deadlineLabel = useCategoryLabels()[DEADLINE_SLOT];
   const selectedDate = useCockpit((s) => s.selectedDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
   const todos = useCockpit((s) => s.todos);
@@ -60,7 +63,7 @@ export function WeekBar() {
 
   const perDay = days.map((iso) => ({ iso, items: todos.filter((t) => occursOn(t, iso)).sort(byTime) }));
   const weekItems = perDay.flatMap((d) => d.items.map((t) => ({ t, iso: d.iso })));
-  const deadlines = weekItems.filter(({ t, iso }) => t.category === "마감" && !isDoneOn(t, iso));
+  const deadlines = weekItems.filter(({ t, iso }) => t.category === deadlineLabel && !isDoneOn(t, iso));
   const timed = weekItems.filter(({ t }) => t.start_time).length;
 
   return (
@@ -79,7 +82,7 @@ export function WeekBar() {
           </GlassButton>
         </div>
 
-        <SummaryPill tone="red" icon={<Flag className="size-3.5" />} label="마감" count={deadlines.length}>
+        <SummaryPill tone="red" icon={<Flag className="size-3.5" />} label={deadlineLabel} count={deadlines.length}>
           {deadlines.slice(0, 3).map(({ t, iso }) => (
             <button
               key={`${t.id}${iso}`}
@@ -103,7 +106,7 @@ export function WeekBar() {
       <div className="grid grid-cols-7 gap-1 sm:gap-1.5 md:gap-2.5">
         {perDay.map(({ iso, items }, i) => {
           const done = items.filter((t) => isDoneOn(t, iso)).length;
-          const dueCount = items.filter((t) => t.category === "마감" && !isDoneOn(t, iso)).length;
+          const dueCount = items.filter((t) => t.category === deadlineLabel && !isDoneOn(t, iso)).length;
           const timedItems = items.filter((t) => t.start_time);
           const external = externalOn(iso);
           const allDay = allDayEvents.filter((e) => coversDate(e, iso));
@@ -197,7 +200,7 @@ export function WeekBar() {
               <div className={cn("min-h-0 min-w-0 flex-1 space-y-0.5 overflow-hidden max-md:invisible", allDay.length ? "mt-1" : "mt-1.5")}>
                 {timedItems.slice(0, rows).map((t) => (
                   <div key={t.id} className="flex min-w-0 items-center gap-1 truncate text-[11px] leading-tight">
-                    <span className={cn("size-1.5 shrink-0 rounded-full", selected ? "bg-white" : CATEGORY_STYLE[t.category].dot)} />
+                    <span className={cn("size-1.5 shrink-0 rounded-full", selected ? "bg-white" : styleOf(t.category).dot)} />
                     <span className={cn("font-semibold tabular-nums", selected ? "text-white" : "text-ink")}>{shortTime(t.start_time)}</span>
                     <span className={cn("truncate", selected ? "text-white/85" : "text-ink-2", isDoneOn(t, iso) && "line-through")}>
                       {t.title}
@@ -269,6 +272,7 @@ function SummaryPill({
 
 /** 이동 필요: 지난 날짜의 미완료 일정. 클릭하면 목록 + 오늘로 옮기기 */
 function OverduePill() {
+  const styleOf = useCategoryStyle();
   const overdue = useCockpit((s) => s.overdue);
   const moveTodoToDate = useCockpit((s) => s.moveTodoToDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
@@ -321,7 +325,7 @@ function OverduePill() {
                 onDragStart={(e) => startTodoDrag(e, t)}
                 className="flex cursor-grab items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/[0.04]"
               >
-                <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-semibold", CATEGORY_STYLE[t.category].badge)}>
+                <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-semibold", styleOf(t.category).badge)}>
                   {t.category}
                 </span>
                 <button

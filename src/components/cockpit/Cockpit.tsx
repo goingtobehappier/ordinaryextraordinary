@@ -28,6 +28,8 @@ import { CalendarSyncModal } from "./CalendarSyncModal";
 import { useCalendar } from "@/store/calendar";
 import { useLunch } from "@/store/lunch";
 import { useAllDay } from "@/store/allDay";
+import { useCategories } from "@/store/categories";
+import { CategoryEditor } from "./CategoryEditor";
 
 const noopSubscribe = () => () => {};
 
@@ -99,6 +101,7 @@ function clearUserData(userId: string | null) {
     selectedDate: todayISO(),
   });
   useAllDay.getState().reset();
+  useCategories.getState().reset();
 }
 
 /**
@@ -155,6 +158,8 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const calendarOpen = useCalendar((s) => s.modalOpen);
   const loadLunchSkips = useLunch((s) => s.load);
   const loadAllDay = useAllDay((s) => s.load);
+  const loadCategories = useCategories((s) => s.load);
+  const categoryEditorOpen = useCategories((s) => s.editorOpen);
 
   // 모바일(앱) 접속 시 기본 보기는 일간 — 좁은 화면에서 한 날짜에 집중 (접속 후 보기 전환은 자유)
   useEffect(() => {
@@ -190,6 +195,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
     void loadAllDay(rangeStart, rangeEnd);
   }, [rangeStart, rangeEnd, loadAllDay, user.id]);
 
+  // 사용자별 1차 태그 이름 (테이블이 없으면 기본 이름)
+  useEffect(() => {
+    void loadCategories(user.id);
+  }, [loadCategories, user.id]);
+
   const bindings = useMemo(() => {
     const s = useCockpit.getState;
     const actions: Record<ShortcutAction, () => void> = {
@@ -212,7 +222,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   }, [shortcuts]);
 
   // 단축키 설정 중에는 녹화 입력과 충돌하지 않도록 비활성화
-  useHotkeys(bindings, !shortcutsOpen && !calendarOpen);
+  useHotkeys(bindings, !shortcutsOpen && !calendarOpen && !categoryEditorOpen);
   useDeselect();
   // 다른 기기(PC ↔ 모바일)의 변경을 실시간 반영 (사용자당 1회 구독, 언마운트 시 해제)
   useRealtimeSync(user.id);
@@ -262,6 +272,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
       {isFullView(view) && selectedTodoId && <TaskEditModal />}
       {shortcutsOpen && <ShortcutSettings />}
       {calendarOpen && <CalendarSyncModal />}
+      {categoryEditorOpen && <CategoryEditor />}
       <TaskReminders userId={user.id} />
 
       {error && (

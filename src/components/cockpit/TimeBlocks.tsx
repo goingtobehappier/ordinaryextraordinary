@@ -7,7 +7,8 @@ import { useLunch } from "@/store/lunch";
 import { useAllDay, coversDate } from "@/store/allDay";
 import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO, weekdayIndex } from "@/lib/date";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
-import { CATEGORY_STYLE, type Todo } from "@/lib/types";
+import { type Todo } from "@/lib/types";
+import { useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { AlarmToggle } from "./AlarmToggle";
@@ -117,6 +118,7 @@ export function TimeBlocks({
   date: string;
   onPickSlot: (start: string) => void;
 }) {
+  const styleOf = useCategoryStyle();
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
   const selectTodo = useCockpit((s) => s.selectTodo);
   const updateTodo = useCockpit((s) => s.updateTodo);
@@ -464,7 +466,7 @@ export function TimeBlocks({
                     "group pointer-events-auto absolute touch-none overflow-hidden rounded-lg border-l-[3px] px-2.5 py-1 text-left outline-none",
                     "transition-[box-shadow,background-color] duration-150 hover:shadow-md focus-visible:ring-2 focus-visible:ring-apple-blue/50",
                     active ? "z-30 cursor-grabbing shadow-lg" : "z-10 cursor-grab",
-                    done ? "border-apple-mint bg-apple-mint/15 text-[#00857f]" : CATEGORY_STYLE[b.todo.category].block,
+                    done ? "border-apple-mint bg-apple-mint/15 text-[#00857f]" : styleOf(b.todo.category).block,
                     selected && "ring-2 ring-apple-blue/60 shadow-md",
                   )}
                   style={{

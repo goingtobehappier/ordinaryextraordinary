@@ -8,7 +8,8 @@ import { DETAIL_REMOTE_EVENT, type RemoteDetail } from "@/hooks/useRealtimeSync"
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
 import { formatLong, isDoneOn, shortTime } from "@/lib/date";
-import { CATEGORIES, CATEGORY_STYLE, REPEAT_LABEL, type Category, type Repeat, type Subtask, type Todo } from "@/lib/types";
+import { REPEAT_LABEL, type Repeat, type Subtask, type Todo } from "@/lib/types";
+import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 import { formatCombo } from "@/hooks/useHotkeys";
 import { GlassButton, GlassInput, GlassPanel, Kbd } from "@/components/ui/Glass";
@@ -29,6 +30,8 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 /** 상세 편집 본문. panel = 하단 슬라이드 패널, modal = 검색·요약 뷰의 수정 모달 */
 export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: "panel" | "modal" }) {
+  const styleOf = useCategoryStyle();
+  const CATEGORIES = useCategoryLabels();
   const bumpRev = useCockpit((s) => s.bumpRev);
   const userId = useCockpit((s) => s.userId);
   const selectedDate = useCockpit((s) => s.selectedDate);
@@ -270,10 +273,12 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
           <div className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
             <select
               value={todo.category}
-              onChange={(e) => void updateTodo(todo.id, { category: e.target.value as Category })}
-              className={cn("rounded-md px-1.5 py-1 text-xs font-semibold outline-none", CATEGORY_STYLE[todo.category].badge)}
+              onChange={(e) => void updateTodo(todo.id, { category: e.target.value })}
+              className={cn("rounded-md px-1.5 py-1 text-xs font-semibold outline-none", styleOf(todo.category).badge)}
               aria-label="1차 태그"
             >
+              {/* 이름이 바뀌기 전 값이 남아 있어도 선택값이 사라지지 않도록 */}
+              {!CATEGORIES.includes(todo.category) && <option value={todo.category}>{todo.category}</option>}
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
                   {c}

@@ -9,6 +9,7 @@ import { formatCombo } from "@/hooks/useHotkeys";
 import { cn } from "@/lib/cn";
 import { normalizeTodo, type Todo } from "@/lib/types";
 import { searchFilter } from "@/lib/search";
+import { useCategories } from "@/store/categories";
 import { CategoryBadge, Kbd, TagChip } from "@/components/ui/Glass";
 
 export const SEARCH_INPUT_ID = "cockpit-search";
@@ -38,7 +39,7 @@ export function SearchBar() {
     let cancelled = false;
     const t = setTimeout(async () => {
       setLoading(true);
-      const f = searchFilter(term);
+      const f = searchFilter(term, useCategories.getState().labels);
       if (!f) return setLoading(false);
       const { data } = await createClient()
         .from("todos")

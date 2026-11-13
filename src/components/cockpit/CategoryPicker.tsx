@@ -1,8 +1,9 @@
 "use client";
 
 import { forwardRef, useId, useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { CATEGORIES, CATEGORY_STYLE, DEFAULT_CATEGORY, type Category } from "@/lib/types";
+import { ChevronDown, Lock, Settings2 } from "lucide-react";
+import { DEFAULT_CATEGORY, WORK_SLOT, type Category } from "@/lib/types";
+import { useCategories, useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -24,6 +25,9 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const listId = useId();
+  const CATEGORIES = useCategoryLabels();
+  const styleOf = useCategoryStyle();
+  const openEditor = useCategories((s) => s.setEditorOpen);
 
   function choose(c: Category) {
     onChange(c);
@@ -83,7 +87,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
         className="flex h-9 w-full items-center gap-1.5 rounded-lg border border-black/5 bg-white/60 pl-2 pr-1.5 text-sm outline-none transition-[box-shadow,background-color] focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
       >
         {shown ? (
-          <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold", CATEGORY_STYLE[shown].badge)}>{shown}</span>
+          <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold", styleOf(shown).badge)}>{shown}</span>
         ) : (
           <span className="text-ink-2/70">{DEFAULT_CATEGORY}</span>
         )}
@@ -114,11 +118,24 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
                 i === active ? "bg-apple-blue/10" : c === value && "bg-black/[0.04]",
               )}
             >
-              <span className={cn("size-2 rounded-full", CATEGORY_STYLE[c].dot)} />
+              <span className={cn("size-2 rounded-full", styleOf(c).dot)} />
               <span className="flex-1">{c}</span>
+              {i === WORK_SLOT && <Lock className="size-3 text-ink-2/70" aria-label="고정 태그" />}
               <kbd className="font-mono text-[11px] text-ink-2">{i + 1}</kbd>
             </li>
           ))}
+          <li
+            role="presentation"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setOpen(false);
+              openEditor(true);
+            }}
+            className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border-t border-black/5 px-2 pb-1 pt-2 text-xs text-ink-2 hover:bg-black/[0.04] hover:text-ink"
+          >
+            <Settings2 className="size-3.5" />
+            태그 이름 편집
+          </li>
         </ul>
       )}
     </div>

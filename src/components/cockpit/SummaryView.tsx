@@ -15,7 +15,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { WEEKDAY_KO, isDoneOn, occursOn, timeToMinutes, weekdayIndex } from "@/lib/date";
-import { normalizeTodo, type Category, type Todo } from "@/lib/types";
+import { normalizeTodo, type Todo } from "@/lib/types";
+import { useCategories } from "@/store/categories";
 import { isMissingColumn, toSubtasks, type Detail } from "@/lib/todoDetails";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel, Kbd } from "@/components/ui/Glass";
@@ -27,8 +28,8 @@ type DayItem = { todo: Todo; done: boolean };
 type Day = { date: string; items: DayItem[]; note: string };
 type Sort = "desc" | "asc";
 
-/** 헤더 집계에 표시할 1차 태그 순서 */
-const COUNT_ORDER: Category[] = ["마감", "미팅", "회의", "보고", "일정", "업무"];
+/** 헤더 집계에 표시할 1차 태그 순서 (슬롯 번호, 기본: 마감·미팅·회의·보고·일정·업무) */
+const COUNT_ORDER = [3, 1, 4, 2, 0, 5];
 const SEP = "｜";
 
 /** [2026년 11월 09일 월요일] */
@@ -40,7 +41,9 @@ function dayLabel(iso: string) {
 function dayCounts(day: Day): string[] {
   const done = day.items.filter((i) => i.done).length;
   const parts = [`완료 ${done}건`];
-  for (const c of COUNT_ORDER) {
+  // 이름 변경 시 rev가 올라 다시 렌더링되므로 현재 이름을 바로 읽음
+  const labels = useCategories.getState().labels;
+  for (const c of COUNT_ORDER.map((i) => labels[i])) {
     const n = day.items.filter((i) => i.todo.category === c).length;
     if (n) parts.push(`${c} ${n}건`);
   }

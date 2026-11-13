@@ -7,6 +7,7 @@ import { noteSchemaReady } from "@/lib/dailyNotes";
 import { useCockpit } from "@/store/cockpit";
 import { useLunch } from "@/store/lunch";
 import { useAllDay } from "@/store/allDay";
+import { useCategories } from "@/store/categories";
 
 /** 다른 기기에서 Daily Memopad가 바뀜 → 해당 날짜 편집기가 반영 */
 export const NOTE_REMOTE_EVENT = "cockpit:note-remote";
@@ -48,6 +49,7 @@ export function useRealtimeSync(userId: string) {
       void useCockpit.getState().resync();
       void useLunch.getState().refresh();
       void useAllDay.getState().refresh();
+      void useCategories.getState().load(userId);
       window.dispatchEvent(new Event(RESYNC_EVENT));
     };
 
@@ -118,6 +120,15 @@ export function useRealtimeSync(userId: string) {
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "all_day_events", filter }, onAllDay)
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "all_day_events", filter }, onAllDay)
         .on("postgres_changes", { event: "DELETE", schema: "public", table: "all_day_events" }, onAllDay),
+    );
+
+    // ── 1차 태그 이름 (다른 기기에서 변경) — 할 일 변경은 todos 채널로 따로 도착 ──
+    const onCategories = () => void useCategories.getState().load(userId);
+    start(
+      sb
+        .channel(`rt-categories:${userId}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_categories", filter }, onCategories)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "user_categories", filter }, onCategories),
     );
 
     // ── Daily Memopad — 실제 테이블(daily_notes / 레거시 daily_memos)이 확인된 뒤 구독 ──

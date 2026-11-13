@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
-import { CATEGORY_STYLE, type Category } from "@/lib/types";
+import { type Category } from "@/lib/types";
+import { useCategoryStyle } from "@/store/categories";
 
 /** 애플 스타일 글래스 패널 */
 export function GlassPanel({ className, ...props }: ComponentProps<"section">) {
@@ -70,11 +71,12 @@ export function CategoryBadge({
   className,
   ...props
 }: ComponentProps<"span"> & { category: Category }) {
+  const styleOf = useCategoryStyle();
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
-        CATEGORY_STYLE[category].badge,
+        styleOf(category).badge,
         className,
       )}
       {...props}

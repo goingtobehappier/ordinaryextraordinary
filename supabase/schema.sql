@@ -9,8 +9,9 @@ create table if not exists public.todos (
   user_id         uuid not null default auth.uid() references auth.users (id) on delete cascade,
   title           text not null check (char_length(title) between 1 and 300),
   -- 1차 태그 (필수)
+  -- 1차 태그: 사용자별 이름(user_categories, migrations/014) — 6번 '업무'는 고정
   category        text not null default '업무'
-                  check (category in ('일정', '미팅', '보고', '마감', '회의', '업무')),
+                  constraint todos_category_len check (char_length(btrim(category)) between 1 and 10),
   date            date not null,
   start_time      time,
   end_time        time,
@@ -140,6 +141,9 @@ create policy "lunch_skips: owner only" on public.lunch_skips
 
 -- ─────────────────────── Realtime (PC ↔ 모바일 실시간 동기화) ───────────────────────
 -- migrations/012_realtime.sql을 실행하면 todos·todo_details·daily_notes·lunch_skips가 supabase_realtime에 등록됩니다.
+
+-- ─────────────────────── user_categories (1차 태그 이름 편집) ───────────────────────
+-- 테이블·RLS·rename_category()·Realtime 정의는 migrations/014_user_categories.sql과 동일합니다.
 
 -- ─────────────────────── all_day_events (종일 일정: 연차·휴가·여행) ───────────────────────
 -- 테이블·RLS·Realtime 정의는 migrations/013_all_day_events.sql과 동일합니다.

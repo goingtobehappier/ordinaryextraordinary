@@ -15,7 +15,8 @@ import {
   todayISO,
 } from "@/lib/date";
 import { isTodoDrag, startTodoDrag } from "@/lib/dnd";
-import { CATEGORY_STYLE } from "@/lib/types";
+import { DEADLINE_SLOT } from "@/lib/types";
+import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { useDropToDate } from "./WeekBar";
@@ -25,6 +26,8 @@ const MAX_ITEMS = 3;
 
 /** 월간 보기: 클릭 = 날짜 선택(우측 과업 리스트·노트 연동, 선택 유지), 더블클릭 = 일간 보기로 열기 */
 export function MonthView() {
+  const styleOf = useCategoryStyle();
+  const deadlineLabel = useCategoryLabels()[DEADLINE_SLOT];
   const selectedDate = useCockpit((s) => s.selectedDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
   const selectTodo = useCockpit((s) => s.selectTodo);
@@ -84,7 +87,7 @@ export function MonthView() {
             .sort((a, b) => (timeToMinutes(a.start_time) ?? 9999) - (timeToMinutes(b.start_time) ?? 9999));
           const inMonth = parseISODate(iso).getMonth() === month;
           const selected = iso === selectedDate;
-          const due = items.filter((t) => t.category === "마감" && !isDoneOn(t, iso)).length;
+          const due = items.filter((t) => t.category === deadlineLabel && !isDoneOn(t, iso)).length;
           // 외부 일정은 할 일 다음 남는 칸에 표시, 넘치는 건수는 '더보기'에 합산
           const external = externalOn(iso);
           const externalShown = external.slice(0, Math.max(0, MAX_ITEMS - items.length));
@@ -153,7 +156,7 @@ export function MonthView() {
                   aria-label={`할 일 ${items.length}건${external.length ? `, 외부 일정 ${external.length}건` : ""}`}
                 >
                   {items.slice(0, MAX_ITEMS).map((t) => (
-                    <span key={t.id} className={cn("size-1.5 rounded-full", CATEGORY_STYLE[t.category].dot, isDoneOn(t, iso) && "opacity-40")} />
+                    <span key={t.id} className={cn("size-1.5 rounded-full", styleOf(t.category).dot, isDoneOn(t, iso) && "opacity-40")} />
                   ))}
                   {externalShown.map((e) => (
                     <span key={e.id} className="size-1.5 rounded-[2px]" style={{ background: sourceColors.get(e.sourceId) ?? "#8e44ad" }} />
@@ -175,7 +178,7 @@ export function MonthView() {
                     title={t.title}
                     className="flex min-w-0 items-center gap-1 truncate rounded-md px-1 py-px text-[11px] hover:bg-white/80"
                   >
-                    <span className={cn("size-1.5 shrink-0 rounded-full", CATEGORY_STYLE[t.category].dot)} />
+                    <span className={cn("size-1.5 shrink-0 rounded-full", styleOf(t.category).dot)} />
                     {t.start_time && <span className="shrink-0 font-semibold tabular-nums">{shortTime(t.start_time)}</span>}
                     <span className={cn("truncate", isDoneOn(t, iso) && "text-ink-2 line-through")}>{t.title}</span>
                   </li>

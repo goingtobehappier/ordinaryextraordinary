@@ -5,7 +5,8 @@ import { BellRing, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { isDoneOn, occursOn, shortTime, timeToMinutes, toISODate, endTimeLabel } from "@/lib/date";
-import { CATEGORY_STYLE, normalizeTodo, type Todo } from "@/lib/types";
+import { normalizeTodo, type Todo } from "@/lib/types";
+import { useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
 import { CategoryBadge } from "@/components/ui/Glass";
 import { useAlarm } from "@/store/alarm";
@@ -132,6 +133,7 @@ function fireAlarms(userId: string, date: string, nowMin: number, list: Todo[]) 
  * - 다른 곳에서 완료·삭제된 과업의 알림은 자동으로 닫힘
  */
 export function TaskReminders({ userId }: { userId: string }) {
+  const styleOf = useCategoryStyle();
   const toggleDone = useCockpit((s) => s.toggleDone);
   const [now, setNow] = useState(() => new Date());
   const today = toISODate(now);
@@ -267,13 +269,13 @@ export function TaskReminders({ userId }: { userId: string }) {
                 : "animate-[reminder-in_420ms_cubic-bezier(0.32,0.72,0,1)_both]",
             )}
           >
-            <span aria-hidden className={cn("w-1.5 shrink-0", CATEGORY_STYLE[todo.category].dot)} />
+            <span aria-hidden className={cn("w-1.5 shrink-0", styleOf(todo.category).dot)} />
             <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-3.5 pl-3">
               <div className="flex items-start gap-2.5">
                 <div
                   className={cn(
                     "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
-                    CATEGORY_STYLE[todo.category].badge,
+                    styleOf(todo.category).badge,
                   )}
                 >
                   <BellRing className={cn("size-4", diff <= 0 && "animate-[reminder-ring_1.2s_ease-in-out_2]")} />

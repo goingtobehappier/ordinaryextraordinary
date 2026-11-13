@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 import { WEEKDAY_KO, isDoneOn, shortTime, timeToMinutes, weekdayIndex, endTimeLabel } from "@/lib/date";
 import { searchFilter } from "@/lib/search";
+import { useCategories } from "@/store/categories";
 import { REPEAT_LABEL, normalizeTodo, type Todo } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { CategoryBadge, GlassButton, GlassPanel, Kbd, TagChip } from "@/components/ui/Glass";
@@ -81,7 +82,7 @@ export function SearchView() {
         .or(
           `and(repeat.eq.none,date.gte.${range.start},date.lte.${range.end}),and(repeat.neq.none,date.lte.${range.end})`,
         );
-      const f = searchFilter(term);
+      const f = searchFilter(term, useCategories.getState().labels);
       if (f) req = req.or(f); // 여러 or()는 AND로 결합됨
       const { data, error } = await req.order("date", { ascending: false }).limit(MAX_ROWS);
       if (cancelled) return;

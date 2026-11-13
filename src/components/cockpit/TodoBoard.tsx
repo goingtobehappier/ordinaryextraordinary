@@ -11,6 +11,7 @@ import {
   Loader2,
   Plus,
   Repeat as RepeatIcon,
+  Settings2,
   Tags,
   Trash2,
 } from "lucide-react";
@@ -28,8 +29,6 @@ import {
 } from "@/lib/date";
 import { startTodoDrag } from "@/lib/dnd";
 import {
-  CATEGORIES,
-  CATEGORY_STYLE,
   REPEAT_LABEL,
   DEFAULT_CATEGORY,
   type Category,
@@ -41,6 +40,7 @@ import { formatCombo } from "@/hooks/useHotkeys";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { CategoryBadge, GlassButton, GlassInput, GlassPanel, Kbd, TagChip } from "@/components/ui/Glass";
 import { CategoryPicker } from "./CategoryPicker";
+import { useCategories, useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { TimeBlocks } from "./TimeBlocks";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
@@ -66,6 +66,9 @@ export function parseTags(raw: string): string[] {
 }
 
 export function TodoBoard() {
+  const styleOf = useCategoryStyle();
+  const CATEGORIES = useCategoryLabels();
+  const openCategoryEditor = useCategories((s) => s.setEditorOpen);
   const view = useCockpit((s) => s.view);
   const selectedDate = useCockpit((s) => s.selectedDate);
   const setSelectedDate = useCockpit((s) => s.setSelectedDate);
@@ -210,13 +213,21 @@ export function TodoBoard() {
               onClick={() => toggleCategory(c)}
               className={cn(
                 "shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold transition-[box-shadow,opacity]",
-                CATEGORY_STYLE[c].badge,
+                styleOf(c).badge,
                 activeCategories.includes(c) ? "ring-2 ring-current" : activeCategories.length && "opacity-50",
               )}
             >
               {c}
             </button>
           ))}
+          <button
+            onClick={() => openCategoryEditor(true)}
+            title="1차 태그 이름 편집"
+            aria-label="1차 태그 이름 편집"
+            className="shrink-0 rounded-md p-1 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink"
+          >
+            <Settings2 className="size-3.5" />
+          </button>
           <span className="mx-0.5 h-4 w-px shrink-0 bg-black/10" />
           {visibleTags.map((tag) => (
             <button key={tag} onClick={() => toggleTag(tag)} className="shrink-0">
