@@ -34,7 +34,7 @@ export function Header({ user }: { user: CockpitUser }) {
 
   return (
     // 데스크톱: 한 줄(h-16) / 태블릿·모바일: 검색창을 아랫줄 전체 폭으로 내려 줄바꿈
-    <GlassPanel className="relative z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2.5 rounded-2xl px-3 py-2.5 sm:px-5 md:flex-nowrap md:gap-x-4 lg:h-16 lg:py-0 xl:gap-x-6 print:hidden">
+    <GlassPanel className="relative z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2.5 rounded-[14px] px-3 py-2.5 sm:px-5 md:flex-nowrap md:gap-x-4 lg:h-16 lg:py-0 xl:gap-x-6 print:hidden">
       <Link
         href="/"
         onClick={(e) => {
@@ -47,7 +47,7 @@ export function Header({ user }: { user: CockpitUser }) {
         aria-label="홈: 주간 보기 · 오늘로 이동"
         title="홈 (주간 보기 · 오늘)"
       >
-        <BrandLockup size={34} textClassName="hidden text-[18px] sm:inline" />
+        <BrandLockup markHeight={24} textClassName="hidden text-[18px] sm:inline" />
       </Link>
 
       <SearchBar />

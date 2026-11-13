@@ -111,7 +111,7 @@ export function SearchBar() {
           }
         }}
         placeholder="할 일 · #태그 검색 (Enter: 전체 결과)"
-        className="h-10 w-full rounded-lg border border-black/5 bg-black/[0.04] pl-9 pr-20 text-sm outline-none transition-[background-color,box-shadow] placeholder:text-ink-2/70 focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
+        className="h-10 w-full rounded-xl border border-black/5 bg-black/[0.04] pl-9 pr-20 text-sm outline-none transition-[background-color,box-shadow] placeholder:text-ink-2/70 focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
         autoComplete="off"
       />
       <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1">

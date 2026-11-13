@@ -45,9 +45,9 @@ export function LoginCard() {
 
   return (
     <GlassPanel className="relative w-[420px] px-10 py-12 text-center">
-      <BrandLogo size={64} className="mx-auto mb-6" />
+      <BrandLogo width={220} className="mx-auto mb-6" />
 
-      <h1 className="text-[28px]">
+      <h1 className="sr-only">
         <BrandWordmark />
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
