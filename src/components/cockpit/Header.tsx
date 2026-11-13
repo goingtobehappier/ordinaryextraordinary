@@ -52,9 +52,9 @@ export function Header({ user }: { user: CockpitUser }) {
 
       <SearchBar />
 
-      {/* 모바일(<sm): contents로 풀어서 [브랜드 + 계정] / [보기 전환 · 버튼] / [검색] 세 줄로 재배치. sm 이상은 기존처럼 오른쪽 한 묶음 */}
-      <div className="contents sm:ml-auto sm:flex sm:shrink-0 sm:items-center sm:gap-2">
-        <div className="order-3 flex shrink-0 basis-full items-center gap-1 sm:order-none sm:basis-auto sm:gap-2">
+      {/* 모바일(<sm): [브랜드] / [보기 전환 · 버튼 ←→ 아바타 · 로그아웃(하단 맞춤)] / [검색] 세 줄. sm 이상은 기존처럼 오른쪽 한 묶음 */}
+      <div className="flex w-full basis-full items-end justify-between gap-2 sm:ml-auto sm:w-auto sm:shrink-0 sm:basis-auto sm:items-center sm:justify-start">
+        <div className="flex shrink-0 items-end gap-1 sm:items-center sm:gap-2">
           <ViewSwitcher />
           <GlassButton onClick={() => setCalendarOpen(true)} title="외부 캘린더 연동" aria-label="외부 캘린더 연동" className="px-2 xl:px-3">
             <CalendarPlus className="size-4 shrink-0" />
@@ -70,10 +70,10 @@ export function Header({ user }: { user: CockpitUser }) {
             </span>
           </GlassButton>
         </div>
-  
-        <div className="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-none sm:ml-0">
+
+        <div className="flex shrink-0 items-end gap-1.5 sm:items-center sm:gap-2">
           <div className="mx-1 hidden h-8 w-px bg-black/10 sm:block xl:mx-2" />
-  
+
           <div className="flex min-w-0 items-center gap-3" title={`${user.name} (${user.email})`}>
             {user.avatarUrl ? (
               // Google 프로필 이미지는 외부 도메인이므로 next/image 대신 img 사용
@@ -82,10 +82,10 @@ export function Header({ user }: { user: CockpitUser }) {
                 src={user.avatarUrl}
                 alt=""
                 referrerPolicy="no-referrer"
-                className="size-9 shrink-0 rounded-full border-2 border-white object-cover shadow-sm"
+                className="size-8 shrink-0 sm:size-9 rounded-full border-2 border-white object-cover shadow-sm"
               />
             ) : (
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-apple-blue/15 text-sm font-semibold text-apple-blue">
+              <div className="flex size-8 shrink-0 sm:size-9 items-center justify-center rounded-full bg-apple-blue/15 text-sm font-semibold text-apple-blue">
                 {user.name.slice(0, 1).toUpperCase()}
               </div>
             )}
@@ -94,7 +94,7 @@ export function Header({ user }: { user: CockpitUser }) {
               <div className="truncate text-xs text-ink-2">{user.email}</div>
             </div>
           </div>
-  
+
           <GlassButton onClick={signOut} disabled={signingOut} title="로그아웃" aria-label="로그아웃" className="px-2 xl:ml-1 xl:px-3">
             {signingOut ? <Loader2 className="size-4 shrink-0 animate-spin" /> : <LogOut className="size-4 shrink-0" />}
             <span className="hidden whitespace-nowrap xl:inline">로그아웃</span>
