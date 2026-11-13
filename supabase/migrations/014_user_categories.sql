@@ -14,6 +14,14 @@ create table if not exists public.user_categories (
     check (array_length(labels, 1) = 6 and array_position(labels, null) is null and labels[6] = '업무')
 );
 
+-- updated_at 갱신 함수 (schema.sql과 동일). 원격 DB에 없을 수 있어 여기서도 보장
+create or replace function public.touch_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end $$;
+
 drop trigger if exists user_categories_touch on public.user_categories;
 create trigger user_categories_touch before update on public.user_categories
   for each row execute function public.touch_updated_at();
