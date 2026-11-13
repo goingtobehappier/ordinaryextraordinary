@@ -80,7 +80,7 @@ export function BrandWordmark({ className }: { className?: string }) {
 /** [안경 심볼] + [워드마크] */
 export function BrandLockup({ markHeight = 24, textClassName }: { markHeight?: number; textClassName?: string }) {
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className="inline-flex items-center gap-2.5">
       <BrandMark height={markHeight} />
       <BrandWordmark className={textClassName} />
     </span>
