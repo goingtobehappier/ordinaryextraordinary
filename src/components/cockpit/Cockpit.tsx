@@ -176,9 +176,12 @@ function CockpitApp({ user }: { user: CockpitUser }) {
     return [start, addDays(start, 6)];
   }, [view, selectedDate]);
 
+  // 할 일: 보이는 범위 + 기준 날짜 앞뒤 2개월을 캐시. 날짜·월·주를 옮겨 캐시 밖으로 나가면 빠진 구간만 추가 조회
+  // (같은 주 안에서 달이 바뀌는 경우도 잡도록 기준 월도 의존성에 포함)
+  const anchorMonth = selectedDate.slice(0, 7);
   useEffect(() => {
     void loadRange(rangeStart, rangeEnd);
-  }, [rangeStart, rangeEnd, loadRange, user.id]);
+  }, [rangeStart, rangeEnd, anchorMonth, loadRange, user.id]);
 
   // 외부 캘린더: 같은 범위만 서버에서 펼쳐 받음 (동기화 시작 날짜 이전은 서버에서 제외)
   useEffect(() => {

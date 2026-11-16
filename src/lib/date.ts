@@ -23,6 +23,15 @@ export function addDays(iso: string, n: number): string {
   return toISODate(d);
 }
 
+/** n개월 이동. 대상 월에 같은 일자가 없으면 말일 (1/31 + 1개월 → 2/28) */
+export function addMonths(iso: string, n: number): string {
+  const d = parseISODate(iso);
+  const target = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d.getDate(), lastDay));
+  return toISODate(target);
+}
+
 /** 해당 날짜가 속한 주의 월요일 */
 export function startOfWeek(iso: string): string {
   const d = parseISODate(iso);

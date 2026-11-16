@@ -3,7 +3,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { createClient } from "@/lib/supabase/client";
-import { addDays, isDoneOn, isOverdue, todayISO } from "@/lib/date";
+import { addDays, addMonths, isDoneOn, isOverdue, todayISO } from "@/lib/date";
+import { fetchAllPages } from "@/lib/fetchAll";
 import {
   DEFAULT_TAG,
   normalizeTodo,
@@ -216,6 +217,58 @@ const inLoadedRange = (t: Todo, loadedRange: string | null) => {
 
 const supabase = () => createClient();
 
+// ───────────────────────── 캘린더 조회 캐시 ─────────────────────────
+/** 기준 날짜 앞뒤로 미리 불러올 개월 수 */
+const WINDOW_MONTHS = 2;
+/** 한 번의 구간 조회에서 받을 최대 건수 (서버 max-rows에 잘리지 않도록 페이지로 나눠 받음) */
+const RANGE_LIMIT = 20000;
+const RANGE_PAGE = 1000;
+/** 캐시를 이어 붙였을 때 이 일수를 넘으면 새 구간으로 교체 (메모리·Realtime 처리량 제한) */
+const MAX_CACHE_DAYS = 400;
+
+const parseRange = (key: string | null): DateRange | null => {
+  if (!key) return null;
+  const [start, end] = key.split("_");
+  return { start, end };
+};
+const rangeKey = (r: DateRange) => `${r.start}_${r.end}`;
+const minISO = (a: string, b: string) => (a < b ? a : b);
+const maxISO = (a: string, b: string) => (a > b ? a : b);
+const spanDays = (r: DateRange) => (Date.parse(r.end) - Date.parse(r.start)) / 86_400_000;
+
+/** 화면 정렬 기준 (시작 시각 → 생성 시각, 시간 없는 일정은 뒤로) */
+const byStartThenCreated = (a: Todo, b: Todo) =>
+  (a.start_time ?? "~").localeCompare(b.start_time ?? "~") || a.created_at.localeCompare(b.created_at);
+
+/**
+ * 구간 조회.
+ * - withRepeatBefore: 구간 시작 전에 시작한 반복 일정도 포함 (캐시를 새로 만들 때만 필요.
+ *   이어 붙이는 구간에서는 이미 받은 범위에 들어 있음)
+ */
+async function fetchTodosRange(userId: string, r: DateRange, withRepeatBefore: boolean) {
+  const filter = withRepeatBefore
+    ? `and(date.gte.${r.start},date.lte.${r.end}),and(repeat.neq.none,date.lt.${r.start})`
+    : `and(date.gte.${r.start},date.lte.${r.end})`;
+  const res = await fetchAllPages(
+    (from, to) =>
+      supabase()
+        .from("todos")
+        .select("*")
+        .eq("user_id", userId)
+        .or(filter)
+        .order("date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    { pageSize: RANGE_PAGE, max: RANGE_LIMIT },
+  );
+  return { todos: res.data.map(normalizeTodo), error: res.error, truncated: res.truncated };
+}
+
+/** 동시에 진행 중인 구간 조회 수 (loading 표시용) */
+let inflight = 0;
+/** 캐시를 통째로 교체할 때마다 증가 — 교체 전에 출발한 이어 붙이기 응답은 버림 */
+let cacheGen = 0;
+
 export const useCockpit = create<CockpitState>()(
   persist(
     (set, get) => {
@@ -307,32 +360,64 @@ export const useCockpit = create<CockpitState>()(
       setError: (msg) => set({ error: msg }),
 
       loadRange: async (start, end, force = false) => {
-        const key = `${start}_${end}`;
-        const loaded = get().loadedRange;
-        // 이미 더 넓은 범위를 불러왔다면 재요청하지 않음
-        if (!force && loaded) {
-          const [ls, le] = loaded.split("_");
-          if (ls <= start && le >= end) return;
-        }
         const userId = uid();
         if (!userId) return;
-        set({ loading: true, loadedRange: key });
+        // 필요한 구간: 보이는 범위 + 기준 날짜(selectedDate) 앞뒤 2개월.
+        // 월 단위로 맞춰서 같은 달 안에서 날짜를 옮길 때는 재조회하지 않음
+        const monthStart = `${get().selectedDate.slice(0, 7)}-01`;
+        const want: DateRange = {
+          start: minISO(start, addMonths(monthStart, -WINDOW_MONTHS)),
+          end: maxISO(end, addDays(addMonths(monthStart, WINDOW_MONTHS + 1), -1)),
+        };
+        const loaded = parseRange(get().loadedRange);
+        // 이미 캐시에 다 들어 있으면 재요청하지 않음
+        if (!force && loaded && loaded.start <= want.start && loaded.end >= want.end) return;
 
-        // 단일 일정은 범위 안, 반복 일정은 범위 마지막 날 이전에 시작한 것 전부
-        const { data, error } = await supabase()
-          .from("todos")
-          .select("*")
-          .eq("user_id", userId)
-          .or(`and(repeat.eq.none,date.gte.${start},date.lte.${end}),and(repeat.neq.none,date.lte.${end})`)
-          .order("start_time", { ascending: true, nullsFirst: false })
-          .order("created_at", { ascending: true });
+        // 기존 캐시와 맞닿거나 겹치면 빠진 구간만 받아 병합, 아니면(멀리 점프·강제 새로고침) 교체
+        const union = loaded && { start: minISO(loaded.start, want.start), end: maxISO(loaded.end, want.end) };
+        const touches = !!loaded && want.start <= addDays(loaded.end, 1) && want.end >= addDays(loaded.start, -1);
+        const fits = !!union && touches && spanDays(union) <= MAX_CACHE_DAYS;
+        const extend = !force && fits;
+        // 강제 새로고침(재연결 등)은 지금까지 받은 범위 전체를 다시 받음
+        const target = fits ? union! : want;
+        const gen = extend ? cacheGen : ++cacheGen;
+        inflight++;
+        set({ loading: true, loadedRange: rangeKey(target) });
 
-        if (get().loadedRange !== key) return; // 더 최근 요청이 있음
-        if (error) set({ loading: false, error: error.message });
-        else {
-          const todos = (data ?? []).map(normalizeTodo);
-          set((s) => ({ loading: false, todos, overdue: recomputeOverdue(s.overdue, todos) }));
+        let results: Awaited<ReturnType<typeof fetchTodosRange>>[];
+        if (extend) {
+          const gaps: DateRange[] = [];
+          if (want.start < loaded!.start) gaps.push({ start: want.start, end: addDays(loaded!.start, -1) });
+          if (want.end > loaded!.end) gaps.push({ start: addDays(loaded!.end, 1), end: want.end });
+          results = await Promise.all(gaps.map((g) => fetchTodosRange(userId, g, false)));
+        } else {
+          results = [await fetchTodosRange(userId, target, true)];
         }
+        inflight--;
+
+        if (gen !== cacheGen || uid() !== userId) {
+          if (!inflight) set({ loading: false });
+          return; // 그 사이 캐시가 교체됨 (더 최근 요청이 있음)
+        }
+        const failed = results.find((r) => r.error);
+        if (failed) {
+          // 빠진 구간이 생기지 않도록 캐시 범위를 무효화 → 다음 이동 때 새로 받음
+          set({ loading: inflight > 0, loadedRange: null, error: failed.error!.message });
+          return;
+        }
+        if (results.some((r) => r.truncated)) {
+          set({ error: `한 번에 불러올 수 있는 일정 수(${RANGE_LIMIT.toLocaleString()}건)를 넘어 일부만 표시됩니다.` });
+        }
+
+        const fetched = results.flatMap((r) => r.todos);
+        set((s) => {
+          const byId = new Map<string, Todo>();
+          if (extend) s.todos.forEach((t) => byId.set(t.id, t));
+          // 서버 값으로 갱신. 저장 중인 항목은 낙관적 상태(로컬 값)를 유지
+          for (const t of fetched) if (!pendingWrites.has(t.id) || !byId.has(t.id)) byId.set(t.id, t);
+          const todos = [...byId.values()].sort(byStartThenCreated);
+          return { loading: inflight > 0, todos, overdue: recomputeOverdue(s.overdue, todos) };
+        });
       },
 
       loadOverdue: async () => {
