@@ -24,7 +24,7 @@ begin
   end if;
 
   new.due_date     := new.date;
-  new.is_completed := new.date = any(new.completed_dates);
+  new.is_completed := coalesce(new.date = any(new.completed_dates), false);
   new.updated_at   := now();
   return new;
 end $$;
