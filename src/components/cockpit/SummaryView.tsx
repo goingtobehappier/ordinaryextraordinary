@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllPages } from "@/lib/fetchAll";
 import { useCockpit } from "@/store/cockpit";
 import { WEEKDAY_KO, isDoneOn, occursOn, timeToMinutes, weekdayIndex } from "@/lib/date";
 import { normalizeTodo, type Todo } from "@/lib/types";
@@ -56,27 +57,40 @@ async function fetchSummary(userId: string, start: string, end: string) {
   const sb = createClient();
   const warnings: string[] = [];
 
-  const todosReq = sb
-    .from("todos")
-    .select("*")
-    .eq("user_id", userId)
-    .or(`and(repeat.eq.none,date.gte.${start},date.lte.${end}),and(repeat.neq.none,date.lte.${end})`)
-    .limit(5000);
+  // 캘린더 캐시(앞뒤 2개월)와 별개로, 요약 기간 전체를 5,000건씩 페이지로 나눠 모두 받음
+  const todosReq = fetchAllPages((from, to) =>
+    sb
+      .from("todos")
+      .select("*")
+      .eq("user_id", userId)
+      .or(`and(repeat.eq.none,date.gte.${start},date.lte.${end}),and(repeat.neq.none,date.lte.${end})`)
+      .order("date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
   // 상세: subtasks 컬럼이 없으면 레거시 sub_tasks로 재시도
+  const fetchDetails = (cols: string) =>
+    fetchAllPages((from, to) =>
+      sb.from("todo_details").select(cols).eq("user_id", userId).order("todo_id", { ascending: true }).range(from, to),
+    );
   const detailsReq = (async () => {
-    const r = await sb.from("todo_details").select("todo_id, memo, subtasks").eq("user_id", userId).limit(10000);
+    const r = await fetchDetails("todo_id, memo, subtasks");
     if (!isMissingColumn(r.error)) return r;
     warnings.push("todo_details.subtasks");
-    return sb.from("todo_details").select("todo_id, memo, subtasks:sub_tasks").eq("user_id", userId).limit(10000);
+    return fetchDetails("todo_id, memo, subtasks:sub_tasks");
   })();
 
   // 데일리 노트: date 컬럼이 없으면 레거시 note_date로 재시도
+  const fetchNotes = (cols: string, col: string) =>
+    fetchAllPages((from, to) =>
+      sb.from("daily_notes").select(cols).eq("user_id", userId).gte(col, start).lte(col, end).order(col, { ascending: true }).range(from, to),
+    );
   const notesReq = (async () => {
-    const r = await sb.from("daily_notes").select("date, content").eq("user_id", userId).gte("date", start).lte("date", end);
+    const r = await fetchNotes("date, content", "date");
     if (!isMissingColumn(r.error)) return r;
     warnings.push("daily_notes.date");
-    return sb.from("daily_notes").select("date:note_date, content").eq("user_id", userId).gte("note_date", start).lte("note_date", end);
+    return fetchNotes("date:note_date, content", "note_date");
   })();
 
   const [todosRes, detailsRes, notesRes] = await Promise.all([todosReq, detailsReq, notesReq]);
@@ -217,7 +231,9 @@ export function SummaryView() {
 
   return (
     <GlassPanel data-print-root className="flex h-[calc(100dvh-140px)] min-h-[520px] min-w-0 flex-col overflow-hidden lg:h-auto lg:min-h-0 lg:flex-1 print:block print:overflow-visible print:rounded-none print:border-0">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/5 px-4 py-3 sm:px-6 sm:py-3.5 print:hidden">
+      <div className="space-y-2 border-b border-black/5 px-4 py-3 sm:px-6 sm:py-3.5 print:hidden">
+      {/* 첫째 줄: 타이틀·통계·1차 태그 필터 ─ 닫기 */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-0 items-center gap-2">
           <ListTree className="size-5 shrink-0 text-apple-blue" />
           <h2 className="shrink-0 text-[17px] font-semibold tracking-[-0.01em] sm:text-[19px]">요약</h2>
@@ -232,13 +248,18 @@ export function SummaryView() {
         </div>
 
         <CategoryFilterChips value={filter} onToggle={toggleFilter} onClear={clearFilter} />
+      </div>
 
-        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+      {/* 둘째 줄: 기간·프리셋·정렬(왼쪽, 타이틀과 같은 시작선) ─ 복사·출력·닫기(오른쪽) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <DateRangeBar range={range} onChange={setRange} />
           <GlassButton onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))} className="text-xs" title="정렬 순서 전환">
             {sort === "desc" ? <ArrowDownWideNarrow className="size-4" /> : <ArrowUpNarrowWide className="size-4" />}
             {sort === "desc" ? "최근순" : "날짜순"}
           </GlassButton>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <GlassButton onClick={copyText} className="text-xs" disabled={!days.length} title="계층 구조 그대로 텍스트로 복사">
             {copied ? <Check className="size-4 text-apple-mint" /> : <ClipboardCopy className="size-4" />}
             {copied ? "복사됨" : "텍스트 복사"}
@@ -249,6 +270,7 @@ export function SummaryView() {
             <span className="whitespace-nowrap">닫기</span> <Kbd className="hidden sm:inline-flex">Esc</Kbd>
           </GlassButton>
         </div>
+      </div>
       </div>
 
       <PrintHeader
