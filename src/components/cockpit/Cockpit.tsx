@@ -34,7 +34,7 @@ import { useLunch } from "@/store/lunch";
 import { useAllDay } from "@/store/allDay";
 import { useCategories } from "@/store/categories";
 import { CategoryEditor } from "./CategoryEditor";
-import { FloatingAssistant } from "./FloatingAssistant";
+import { FloatingAssistant, useAssistantHotkey } from "./FloatingAssistant";
 
 const noopSubscribe = () => () => {};
 
@@ -235,6 +235,8 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   }, [shortcuts]);
 
   // 단축키 설정 중에는 녹화 입력과 충돌하지 않도록 비활성화
+  // O.E. Buddy: A = 열기/닫기, Esc = 닫기 (PC). 선택 해제 Esc보다 먼저 등록해 우선 처리
+  useAssistantHotkey(!isMobile && !shortcutsOpen && !calendarOpen && !categoryEditorOpen);
   useHotkeys(bindings, !shortcutsOpen && !calendarOpen && !categoryEditorOpen);
   useDeselect();
   // 다른 기기(PC ↔ 모바일)의 변경을 실시간 반영 (사용자당 1회 구독, 언마운트 시 해제)
