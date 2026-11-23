@@ -167,7 +167,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const categoryEditorOpen = useCategories((s) => s.editorOpen);
   const isMobile = useIsMobile();
   const mobileTab = useAssistant((s) => s.mobileTab);
-  // PC·태블릿: 우측 메모 패널 ↔ O.E. Manager 교체 / 모바일: 하단 탭으로 전환
+  // PC·태블릿: 우측 메모 패널 ↔ O.E. Buddy 교체 / 모바일: 하단 탭으로 전환
   const assistantOpen = useAssistant((s) => s.open) && !isMobile;
   const managerActive = isMobile && mobileTab === "manager";
 
@@ -240,7 +240,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   // 다른 기기(PC ↔ 모바일)의 변경을 실시간 반영 (사용자당 1회 구독, 언마운트 시 해제)
   useRealtimeSync(user.id);
 
-  /** 우측 메모 패널 자리: PC에서 O.E. Manager를 열면 같은 위치·크기로 대화창과 교체 (메모는 숨기기만 해 입력 중 내용 보존) */
+  /** 우측 메모 패널 자리: PC에서 O.E. Buddy를 열면 같은 위치·크기로 대화창과 교체 (메모는 숨기기만 해 입력 중 내용 보존) */
   const memoSlot = (className?: string) => (
     <div className={cn("flex min-h-0 min-w-0", className)}>
       <DailyNote userId={user.id} className={cn("w-full flex-1", assistantOpen && "hidden")} />
@@ -251,8 +251,8 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   return (
     <>
     {/* 데스크톱(lg+): 한 화면 고정 2열 / 태블릿·모바일: 상하 1열로 쌓고 페이지 스크롤
-        모바일: 하단 탭 바만큼, 태블릿: 우측 하단 O.E. Manager 버튼만큼 하단 여백
-        모바일 O.E. Manager 탭에서는 숨기기만 함(상태·스크롤 유지) */}
+        모바일: 하단 탭 바만큼, 태블릿: 우측 하단 O.E. Buddy 버튼만큼 하단 여백
+        모바일 O.E. Buddy 탭에서는 숨기기만 함(상태·스크롤 유지) */}
     <div
       className={cn(
         "flex min-h-dvh flex-col gap-3 p-3 pb-[calc(72px+env(safe-area-inset-bottom))] sm:gap-4 sm:p-4 sm:pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-24 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5 print:block print:h-auto print:min-h-0 print:p-0",

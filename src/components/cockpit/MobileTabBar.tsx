@@ -31,7 +31,7 @@ function useVisualViewport() {
   return vv;
 }
 
-/** 모바일 O.E. Manager 탭: 탭 바 위 전체 화면 대화. 키보드가 열리면 보이는 영역에 맞춰 입력창이 키보드 바로 위에 옴 */
+/** 모바일 O.E. Buddy 탭: 탭 바 위 전체 화면 대화. 키보드가 열리면 보이는 영역에 맞춰 입력창이 키보드 바로 위에 옴 */
 export function MobileManagerScreen({ active }: { active: boolean }) {
   const vv = useVisualViewport();
   const keyboard = !!vv?.keyboard;
@@ -54,7 +54,7 @@ const TABS: { id: MobileTab; label: string }[] = [
   { id: "timeblock", label: "타임블록" },
 ];
 
-/** 모바일(< md) 하단 2탭: O.E. Manager / 타임블록. 키보드가 열려 있으면 숨겨 입력 영역을 확보 */
+/** 모바일(< md) 하단 2탭: O.E. Buddy / 타임블록. 키보드가 열려 있으면 숨겨 입력 영역을 확보 */
 export function MobileTabBar() {
   const tab = useAssistant((s) => s.mobileTab);
   const setTab = useAssistant((s) => s.setMobileTab);

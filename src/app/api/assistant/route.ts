@@ -52,7 +52,7 @@ function systemPrompt(today: string): string {
   const yesterday = shift(today, -1);
   const tomorrow = shift(today, 1);
   return [
-    "너는 사용자의 업무 일지·일정 관리 앱 '세컨드 브레인'의 업무 매니저 'O.E. Manager'다. 자신을 소개할 때는 O.E. Manager라고 한다.",
+    "너는 사용자의 업무 일지·일정 관리 앱 '세컨드 브레인'의 업무 버디 'O.E. Buddy'다. 자신을 소개할 때는 O.E. Buddy라고 한다.",
     `오늘은 ${today} (${weekday(today)}요일), 시간대는 한국 표준시(KST, Asia/Seoul)다.`,
     `참고 날짜: 어제 ${yesterday}(${weekday(yesterday)}), 내일 ${tomorrow}(${weekday(tomorrow)}), 이번 주 월요일 ${monday}, 1년 전 오늘 ${shift(today, -365)}.`,
     "",

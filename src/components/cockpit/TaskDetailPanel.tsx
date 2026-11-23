@@ -146,7 +146,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
     return () => window.removeEventListener(DETAIL_REMOTE_EVENT, onRemote);
   }, [loaded, todo.id, memoPending]);
 
-  // O.E. Manager가 데이터를 바꿈 → 세부 메모·하위 작업을 조용히 다시 불러옴
+  // O.E. Buddy가 데이터를 바꿈 → 세부 메모·하위 작업을 조용히 다시 불러옴
   // 이 기기에서 저장 중·입력 대기 중이면 사용자의 입력을 덮어쓰지 않도록 건너뜀
   useEffect(() => {
     if (!loaded) return;

@@ -219,7 +219,7 @@ export function TodoBoard() {
         )}
       </div>
 
-      {/* 모바일은 입력 바 없음 — 일정 추가는 O.E. Manager 탭에서 (타임블록 빈 칸을 탭하면 시간이 채워진 채로 이동) */}
+      {/* 모바일은 입력 바 없음 — 일정 추가는 O.E. Buddy 탭에서 (타임블록 빈 칸을 탭하면 시간이 채워진 채로 이동) */}
       {!isMobile && <AddTodoForm prefill={prefillStart} />}
       <ExternalEventStrip date={selectedDate} />
 

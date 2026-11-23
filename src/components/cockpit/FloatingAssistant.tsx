@@ -6,7 +6,7 @@ import { OEBuddy } from "@/components/ui/OEBuddy";
 import { ASSISTANT_NAME, useAssistant } from "@/store/assistant";
 
 /**
- * PC·태블릿(md 이상) O.E. Manager 트리거.
+ * PC·태블릿(md 이상) O.E. Buddy 트리거.
  * 누르면 우측 메모 패널 자리가 같은 크기의 대화창으로 바뀌고(Cockpit), 열려 있으면 X로 바뀌어 다시 메모로 돌아감.
  * 모바일은 하단 탭(MobileTabBar)이 대신하므로 숨김.
  *
@@ -18,7 +18,7 @@ export function FloatingAssistant() {
   const setOpen = useAssistant((s) => s.setOpen);
 
   return (
-    <div className="oe-hop-wrap fixed bottom-8 right-8 z-40 hidden md:block print:hidden" data-keep-selection>
+    <div className="oe-hop-wrap fixed bottom-14 right-11 z-40 hidden md:block print:hidden" data-keep-selection>
       {/* 바닥 그림자: 점프 높이에 맞춰 작아졌다 커짐 */}
       <span
         aria-hidden
@@ -34,9 +34,9 @@ export function FloatingAssistant() {
         aria-expanded={open}
         title={ASSISTANT_NAME}
         className={cn(
-          "group relative flex size-14 items-center justify-center rounded-xl",
+          "group relative flex size-14 items-center justify-center rounded-[8px]",
           // 프로스트 글래스: 반투명 흰 바탕 + 블러, 위쪽 밝은 테두리·아래쪽 옅은 음영으로 두께감
-          "border border-white/80 bg-white/75 backdrop-blur-md",
+          "border border-white/80 bg-white/80 backdrop-blur-md",
           "shadow-[inset_0_1px_0_rgb(255_255_255/0.95),inset_0_-2px_0_rgb(0_0_0/0.04),0_0_0_1px_rgb(0_0_0/0.06),0_10px_24px_-10px_rgb(0_0_0/0.28)]",
           "transition-[background-color,box-shadow] duration-150 hover:bg-white/90",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apple-blue/50 focus-visible:ring-offset-2",

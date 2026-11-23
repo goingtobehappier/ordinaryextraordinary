@@ -4,7 +4,7 @@ import { normalizeLabels } from "@/lib/categories";
 import { resolveTodoTags } from "@/lib/tagInference";
 import { DEFAULT_CATEGORY, DEFAULT_TAG, type Repeat } from "@/lib/types";
 
-/** O.E. Manager 도구 실행 결과 — Gemini functionResponse.response로 그대로 전달됨 */
+/** O.E. Buddy 도구 실행 결과 — Gemini functionResponse.response로 그대로 전달됨 */
 export type ToolResult = Record<string, unknown>;
 
 export type ToolContext = {

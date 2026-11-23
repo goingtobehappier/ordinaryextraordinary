@@ -4,9 +4,9 @@ import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 
-/** O.E. Manager 대화 상태 — PC(우측 패널 교체)와 모바일(O.E. Manager 탭)이 같은 대화를 공유 */
+/** O.E. Buddy 대화 상태 — PC(우측 패널 교체)와 모바일(O.E. Buddy 탭)이 같은 대화를 공유 */
 
-export const ASSISTANT_NAME = "O.E. Manager";
+export const ASSISTANT_NAME = "O.E. Buddy";
 
 /** AI가 데이터를 바꿈 → 열려 있는 상세 화면이 세부 메모·하위 작업을 서버에서 다시 불러옴 */
 export const DETAIL_RELOAD_EVENT = "cockpit:detail-reload";
@@ -100,7 +100,7 @@ type AssistantState = {
   pending: boolean;
   /** PC: 우측 메모 패널 자리를 대화창으로 교체 중 */
   open: boolean;
-  /** 모바일 하단 탭 (접속 시 O.E. Manager가 기본) */
+  /** 모바일 하단 탭 (접속 시 O.E. Buddy가 기본) */
   mobileTab: MobileTab;
   setInput: (v: string) => void;
   setOpen: (open: boolean) => void;
