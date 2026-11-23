@@ -2,37 +2,51 @@
 
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { BrandMark } from "@/components/ui/Brand";
+import { OEBuddy } from "@/components/ui/OEBuddy";
 import { ASSISTANT_NAME, useAssistant } from "@/store/assistant";
 
 /**
- * PC·태블릿(md 이상) 우측 하단 O.E. Manager 트리거.
+ * PC·태블릿(md 이상) O.E. Manager 트리거.
  * 누르면 우측 메모 패널 자리가 같은 크기의 대화창으로 바뀌고(Cockpit), 열려 있으면 X로 바뀌어 다시 메모로 돌아감.
  * 모바일은 하단 탭(MobileTabBar)이 대신하므로 숨김.
+ *
+ * 모양: 뒤가 은은하게 비치는 프로스트 글래스 + 3D 캐릭터. 닫혀 있을 때만 4.5초마다 "쿵, 쿵" 뛰고(globals.css oe-hop),
+ * 마우스를 올리거나 포커스하면 멈춤. 움직임 줄이기 설정이면 정지.
  */
 export function FloatingAssistant() {
   const open = useAssistant((s) => s.open);
   const setOpen = useAssistant((s) => s.setOpen);
 
   return (
-    <button
-      type="button"
-      onClick={() => setOpen(!open)}
-      aria-label={open ? `${ASSISTANT_NAME} 닫고 메모로 돌아가기` : `${ASSISTANT_NAME} 열기`}
-      aria-expanded={open}
-      title={ASSISTANT_NAME}
-      data-keep-selection
-      className={cn(
-        "fixed bottom-5 right-5 z-40 hidden size-14 items-center justify-center rounded-xl md:flex print:hidden",
-        // 매트한 입체감: 위쪽 은은한 하이라이트 + 아래쪽 안쪽 음영 + 부드러운 바닥 그림자 (광택·그라데이션 없음)
-        "bg-[#262626] text-white",
-        "shadow-[inset_0_1px_0_rgb(255_255_255/0.10),inset_0_-3px_0_rgb(0_0_0/0.28),0_2px_4px_rgb(0_0_0/0.16),0_10px_24px_-8px_rgb(0_0_0/0.38)]",
-        "transition-[background-color,transform,box-shadow] duration-150 hover:bg-[#2f2f2f]",
-        "active:translate-y-px active:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),inset_0_-1px_0_rgb(0_0_0/0.28),0_1px_2px_rgb(0_0_0/0.18),0_4px_12px_-6px_rgb(0_0_0/0.35)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/40 focus-visible:ring-offset-2",
-      )}
-    >
-      {open ? <X className="size-5" strokeWidth={2} /> : <BrandMark className="w-[30px] text-white" />}
-    </button>
+    <div className="oe-hop-wrap fixed bottom-8 right-8 z-40 hidden md:block print:hidden" data-keep-selection>
+      {/* 바닥 그림자: 점프 높이에 맞춰 작아졌다 커짐 */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-x-0 -bottom-2.5 mx-auto h-2.5 w-11 rounded-[50%] bg-black/20 blur-[3px]",
+          !open && "oe-hop-shadow",
+        )}
+      />
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-label={open ? `${ASSISTANT_NAME} 닫고 메모로 돌아가기` : `${ASSISTANT_NAME} 열기`}
+        aria-expanded={open}
+        title={ASSISTANT_NAME}
+        className={cn(
+          "group relative flex size-14 items-center justify-center rounded-xl",
+          // 프로스트 글래스: 반투명 흰 바탕 + 블러, 위쪽 밝은 테두리·아래쪽 옅은 음영으로 두께감
+          "border border-white/80 bg-white/75 backdrop-blur-md",
+          "shadow-[inset_0_1px_0_rgb(255_255_255/0.95),inset_0_-2px_0_rgb(0_0_0/0.04),0_0_0_1px_rgb(0_0_0/0.06),0_10px_24px_-10px_rgb(0_0_0/0.28)]",
+          "transition-[background-color,box-shadow] duration-150 hover:bg-white/90",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apple-blue/50 focus-visible:ring-offset-2",
+          !open && "oe-hop",
+        )}
+      >
+        <span className="flex items-center justify-center transition-transform duration-100 group-active:scale-[0.92]">
+          {open ? <X className="size-5 text-[#262626]" strokeWidth={2.25} /> : <OEBuddy className="w-10" />}
+        </span>
+      </button>
+    </div>
   );
 }

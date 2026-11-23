@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { ArrowUp, Loader2, Mic, RotateCcw, Square } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { formatLong, todayISO } from "@/lib/date";
-import { BrandMark } from "@/components/ui/Brand";
+import { OEBuddy } from "@/components/ui/OEBuddy";
 import { ASSISTANT_NAME, QUICK_PROMPTS, useAssistant } from "@/store/assistant";
 
 /** 모델 답변의 마크다운 강조·제목 기호를 걷어내고 목록 기호만 정리 (본문은 pre-wrap으로 표시) */
@@ -153,9 +153,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
           screen ? "h-14 px-4 pt-[env(safe-area-inset-top)] box-content" : "h-12 pl-4 pr-2",
         )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#262626]">
-          <BrandMark className="w-[18px] text-white" />
-        </span>
+        <OEBuddy className="w-7" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold text-[#262626]">{ASSISTANT_NAME}</h2>
           {screen && <p className="truncate text-[11px] text-ink-2">{formatLong(todayISO())}</p>}
@@ -226,8 +224,8 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
         onSubmit={onSubmit}
         className={cn(
           "flex shrink-0 items-end gap-2 border-t border-black/[0.06] p-3",
-          // PC: 우측 하단 고정 버튼(56px)과 겹치지 않도록 오른쪽 여백
-          !screen && "md:pr-[84px]",
+          // PC: 우측 하단 고정 버튼(right 32px + 56px)과 겹치지 않도록 오른쪽 여백
+          !screen && "md:pr-[88px]",
         )}
       >
         <label htmlFor={`assistant-input-${variant}`} className="sr-only">
