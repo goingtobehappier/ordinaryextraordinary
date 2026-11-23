@@ -83,13 +83,9 @@ export function MobileTabBar() {
               )}
             >
               {t.id === "manager" ? (
-                <span
-                  className={cn(
-                    "flex h-6 w-8 items-center justify-center rounded-md transition-colors",
-                    selected ? "bg-[#262626] text-white" : "text-ink-2",
-                  )}
-                >
-                  <BrandMark className="w-5 text-current" />
+                // 캐릭터 아이콘: 선택 = 원색, 미선택 = 흐리게 (캐릭터 색을 가리지 않도록 바탕 박스 없음)
+                <span className="flex h-6 w-8 items-center justify-center">
+                  <BrandMark className={cn("size-6 transition-[opacity,filter]", !selected && "opacity-45 grayscale")} />
                 </span>
               ) : (
                 <span

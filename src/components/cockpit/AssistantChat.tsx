@@ -161,7 +161,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
           screen ? "h-14 px-4 pt-[env(safe-area-inset-top)] box-content" : "h-12 pl-4 pr-2",
         )}
       >
-        <OEBuddy className="w-7" />
+        <OEBuddy variant="icon" size={28} className="rounded-[4px]" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold text-[#262626]">{ASSISTANT_NAME}</h2>
           {screen && <p className="truncate text-[11px] text-ink-2">{formatLong(todayISO())}</p>}

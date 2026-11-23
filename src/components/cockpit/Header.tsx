@@ -47,7 +47,7 @@ export function Header({ user }: { user: CockpitUser }) {
         aria-label="홈: 주간 보기 · 오늘로 이동"
         title="홈 (주간 보기 · 오늘)"
       >
-        <BrandLockup markClassName="w-[21px] sm:w-[25px]" textClassName="text-[15px] tracking-tight sm:text-[18px]" />
+        <BrandLockup markClassName="size-[18px] sm:size-5" textClassName="text-[15px] tracking-tight sm:text-[18px]" />
       </Link>
 
       <SearchBar />

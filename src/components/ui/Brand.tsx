@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { OEBuddy, OE_BUDDY_FULL } from "./OEBuddy";
 
 export const BRAND_NAME = "ordinaryextraordinary";
 
@@ -9,51 +10,19 @@ const ARC_ANGLES = [
 ];
 const ARC_WORD = "ORDINARYEXTRAORDINARY";
 
-/** 원 경로 (evenodd 구멍용) */
-const disc = (cx: number, cy: number, r: number) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
-
 /**
- * 동그란 안경 + 눈동자 (흑백 플랫). 좌표 원점 = 안경 중심.
- * compact: 20~26px 크기용 — 선을 굵게, 눈동자를 키워 작은 크기에서도 글자 굵기와 어울리게.
+ * 브랜드 심볼: O.E. Buddy 캐릭터 얼굴(동그란 안경 + 눈) 아이콘 (GNB·탭 등 작은 자리).
+ * 크기는 className의 size-* / h-* w-* 로 지정 (기본 20px).
  */
-function GlassesShape({ compact = false }: { compact?: boolean }) {
-  const stroke = compact ? 34 : 21;
-  const lensR = 106.5 - stroke / 2; // 바깥 지름은 원본과 동일하게 유지
-  const pupilR = compact ? 44 : 38;
-  const hi = compact ? { dx: 18, dy: -18, r: 15 } : { dx: 19, dy: -18.5, r: 13 };
-  return (
-    <>
-      <g fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round">
-        <circle cx="-124" r={lensR} />
-        <circle cx="124" r={lensR} />
-        <path d={`M-32-27.5Q1-41.5 34-27.5M${-238 + (compact ? 4 : 0)} 0h22M${238 - (compact ? 4 : 0)} 0h-22`} />
-      </g>
-      {/* 눈동자 + 하이라이트(구멍) */}
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        d={[-124, 124.5].map((cx) => disc(cx, 0, pupilR) + disc(cx + hi.dx, hi.dy, hi.r)).join("")}
-      />
-    </>
-  );
-}
-
-/** 안경 심볼만 (GNB 등 작은 자리). 크기는 className의 너비(w-*)로 지정, 높이는 비율 자동 */
 export function BrandMark({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="-256 -110 512 220"
-      className={cn("block h-auto w-6 shrink-0 text-ink", className)}
-      role="img"
-      aria-label={`${BRAND_NAME} 로고`}
-    >
-      <GlassesShape compact />
-    </svg>
-  );
+  return <OEBuddy variant="icon" size={40} alt={`${BRAND_NAME} 로고`} className={cn("size-5", className)} />;
 }
 
-/** 전체 로고: 아치형 'ORDINARYEXTRAORDINARY' + 안경 심볼. width 기준 크기 */
+/** 전체 로고: 아치형 'ORDINARYEXTRAORDINARY' + 가운데 O.E. Buddy 캐릭터. width 기준 크기 */
 export function BrandLogo({ width = 200, className }: { width?: number; className?: string }) {
+  // 아치 안쪽(반지름 370) 가운데에 전신 캐릭터 배치
+  const figW = 360;
+  const figH = Math.round(figW * OE_BUDDY_FULL.ratio);
   return (
     <svg
       viewBox="-470 -458 940 608"
@@ -70,7 +39,7 @@ export function BrandLogo({ width = 200, className }: { width?: number; classNam
           </text>
         ))}
       </g>
-      <GlassesShape />
+      <image href={OE_BUDDY_FULL.src} x={-figW / 2} y={150 - figH} width={figW} height={figH} />
     </svg>
   );
 }
@@ -85,7 +54,7 @@ export function BrandWordmark({ className }: { className?: string }) {
   );
 }
 
-/** [안경 심볼] + [워드마크] */
+/** [캐릭터 아이콘] + [워드마크] — 아이콘은 글자 높이보다 크지 않게, 세로 가운데 정렬 */
 export function BrandLockup({ markClassName, textClassName }: { markClassName?: string; textClassName?: string }) {
   return (
     <span className="inline-flex shrink-0 flex-nowrap items-center gap-1.5">
