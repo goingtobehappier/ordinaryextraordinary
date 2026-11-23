@@ -513,13 +513,13 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
               spellCheck={false}
               placeholder={loaded ? "오늘의 기록을 마크다운으로 남겨보세요…" : "불러오는 중…"}
               // md 이상: 우측 하단에 떠 있는 O.E. Buddy 버튼에 마지막 줄이 가리지 않도록 하단 여유
-              className="h-full w-full resize-none break-keep bg-transparent px-4 py-4 font-sans text-[14px] leading-[1.7] outline-none placeholder:text-ink-2/70 sm:px-5 md:pb-24 scroll-thin"
+              className="h-full w-full resize-none break-keep bg-transparent px-4 py-4 font-sans text-[14px] leading-[1.7] outline-none placeholder:text-ink-2/70 sm:px-5 md:pb-32 scroll-thin"
             />
             {loaded && !content && <TemplateButton onClick={applyTemplate} />}
           </div>
         )}
         {(mode === "split" || mode === "preview") && (
-          <div className={cn("min-h-0 min-w-0 overflow-y-auto break-keep px-4 py-3 sm:px-5 md:pb-24 scroll-thin", mode === "split" && "border-t border-black/5 bg-white/30")}>
+          <div className={cn("min-h-0 min-w-0 overflow-y-auto break-keep px-4 py-3 sm:px-5 md:pb-32 scroll-thin", mode === "split" && "border-t border-black/5 bg-white/30")}>
             {content.trim() ? (
               <Markdown source={content} onToggleTask={toggleTask} />
             ) : (

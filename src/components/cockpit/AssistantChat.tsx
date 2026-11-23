@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowUp, Loader2, Mic, RotateCcw, Square } from "lucide-react";
+import { ArrowUp, Loader2, Mic, RotateCcw, Square, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { formatLong, todayISO } from "@/lib/date";
 import { OEBuddy } from "@/components/ui/OEBuddy";
 import { ASSISTANT_NAME, QUICK_PROMPTS, useAssistant } from "@/store/assistant";
+import { OE_TRIGGER_ID } from "./FloatingAssistant";
 
 /** 모델 답변의 마크다운 강조·제목 기호를 걷어내고 목록 기호만 정리 (본문은 pre-wrap으로 표시) */
 function plain(text: string): string {
@@ -126,11 +127,18 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
     }
   };
 
+  /** PC: 대화창을 닫고 원래 메모 패널로 — 다시 나타나는 우측 하단 트리거로 포커스를 돌려줌 */
+  const close = () => {
+    if (voice.listening) voice.toggle();
+    setOpen(false);
+    requestAnimationFrame(() => document.getElementById(OE_TRIGGER_ID)?.focus());
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     // PC: Esc → 원래 메모 패널로
     if (!screen && e.key === "Escape" && !e.nativeEvent.isComposing) {
       e.stopPropagation();
-      setOpen(false);
+      close();
     }
   };
 
@@ -167,6 +175,18 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
           <RotateCcw className="size-3.5" />
           초기화
         </button>
+        {/* PC: 열려 있는 동안 우측 하단 트리거는 숨기고 닫기는 여기서 (입력창·전송 버튼을 가리지 않도록) */}
+        {!screen && (
+          <button
+            type="button"
+            onClick={close}
+            aria-label={`${ASSISTANT_NAME} 닫고 메모로 돌아가기`}
+            title="닫기 (Esc)"
+            className="flex size-8 items-center justify-center rounded-[4px] text-ink-2 transition-colors hover:bg-black/5 hover:text-[#262626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </header>
 
       <div ref={listRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
@@ -213,7 +233,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
       </div>
 
       {!empty && (
-        <div className={cn("scroll-thin flex shrink-0 gap-2 overflow-x-auto border-t border-black/[0.06] px-4 py-2", !screen && "md:pr-[112px]")}>
+        <div className="scroll-thin flex shrink-0 gap-2 overflow-x-auto border-t border-black/[0.06] px-4 py-2">
           {QUICK_PROMPTS.map((p) => (
             <QuickPrompt key={p} label={p} onClick={() => submit(p)} disabled={pending} compact />
           ))}
@@ -224,8 +244,6 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
         onSubmit={onSubmit}
         className={cn(
           "flex shrink-0 items-end gap-2 border-t border-black/[0.06] p-3",
-          // PC: 떠 있는 O.E. Buddy 버튼(right 44px + 56px)과 겹치지 않도록 오른쪽 여백
-          !screen && "md:pr-[112px]",
         )}
       >
         <label htmlFor={`assistant-input-${variant}`} className="sr-only">
