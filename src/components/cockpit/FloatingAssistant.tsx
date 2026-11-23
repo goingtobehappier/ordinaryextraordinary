@@ -22,7 +22,7 @@ export function FloatingAssistant() {
 
   return (
     <div
-      className={cn("oe-hop-wrap group/oe fixed bottom-[88px] right-11 z-40 hidden print:hidden", !open && "md:block")}
+      className={cn("oe-hop-wrap fixed bottom-[88px] right-11 z-40 hidden print:hidden", !open && "md:block")}
       data-keep-selection
     >
       {/* 발밑 타원 그림자: 점프 높이에 맞춰 작아지고 옅어졌다가 착지하면 다시 커짐 */}
@@ -30,21 +30,12 @@ export function FloatingAssistant() {
         aria-hidden
         className="oe-hop-shadow pointer-events-none absolute inset-x-0 -bottom-1 mx-auto h-2 w-10 rounded-[50%] bg-[#00534f]/25 blur-[2px]"
       />
-      {/* 마우스를 올리거나 키보드로 포커스하면 머리 위 이름표 (점프와 분리돼 흔들리지 않음) */}
-      <span
-        role="tooltip"
-        id={`${OE_TRIGGER_ID}-tip`}
-        className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#262626] px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/oe:opacity-100 group-focus-within/oe:opacity-100"
-      >
-        {ASSISTANT_NAME}
-      </span>
-      {/* 바탕 없이 캐릭터만 보임. 클릭 영역은 투명한 56×56 그대로 */}
+      {/* 바탕·글자 없이 캐릭터만 보임. 클릭 영역은 투명한 56×56, 이름은 화면에 보이지 않는 aria-label로만 */}
       <button
         id={OE_TRIGGER_ID}
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={`${ASSISTANT_NAME} 열기`}
-        aria-describedby={`${OE_TRIGGER_ID}-tip`}
+        aria-label={ASSISTANT_NAME}
         aria-expanded={open}
         className={cn(
           "oe-hop group relative flex size-14 items-end justify-center rounded-lg bg-transparent",
