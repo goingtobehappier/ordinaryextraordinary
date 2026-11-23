@@ -30,6 +30,7 @@ import { useLunch } from "@/store/lunch";
 import { useAllDay } from "@/store/allDay";
 import { useCategories } from "@/store/categories";
 import { CategoryEditor } from "./CategoryEditor";
+import { FloatingAssistant } from "./FloatingAssistant";
 
 const noopSubscribe = () => () => {};
 
@@ -232,7 +233,8 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 
   return (
     // 데스크톱(lg+): 한 화면 고정 2열 / 태블릿·모바일: 상하 1열로 쌓고 페이지 스크롤
-    <div className="flex min-h-dvh flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5 print:block print:h-auto print:min-h-0 print:p-0">
+    // 모바일·태블릿 하단 여백(pb-24): 페이지 끝 콘텐츠가 플로팅 AI 매니저 버튼에 가리지 않도록
+    <div className="flex min-h-dvh flex-col gap-3 p-3 pb-24 sm:gap-4 sm:p-4 sm:pb-24 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5 print:block print:h-auto print:min-h-0 print:p-0">
       <Header user={user} />
 
       <main className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-5 print:block">
@@ -277,6 +279,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
       {calendarOpen && <CalendarSyncModal />}
       {categoryEditorOpen && <CategoryEditor />}
       <TaskReminders userId={user.id} />
+      <FloatingAssistant />
 
       {error && (
         <div
