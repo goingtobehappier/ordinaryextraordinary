@@ -71,8 +71,12 @@ function tagList(v: unknown): string[] {
 
 const isDone = (t: Pick<TodoRow, "date" | "completed_dates">) => (t.completed_dates ?? []).includes(t.date);
 
-/** 모델에게 돌려줄 일정 요약 (불필요한 필드 제외) */
-function view(t: TodoRow) {
+/** 검색 결과 한 건에 담는 세부 메모 최대 길이 (응답 컨텍스트 과다 방지) */
+const MEMO_PREVIEW_MAX = 1500;
+
+/** 모델에게 돌려줄 일정 요약 (불필요한 필드 제외). memo = 세부 메모(todo_details.memo) */
+function view(t: TodoRow, memo?: string | null) {
+  const m = memo?.trim();
   return {
     id: t.id,
     title: t.title,
@@ -83,10 +87,24 @@ function view(t: TodoRow) {
     tags: t.tags ?? [],
     repeat: t.repeat,
     done: t.repeat === "none" ? isDone(t) : undefined,
-    ai_tags: t.ai_tags ?? [],
-    used_tools: t.used_tools ?? [],
-    retrospective_memo: t.retrospective_memo,
+    ...(m !== undefined ? { memo: m ? (m.length > MEMO_PREVIEW_MAX ? `${m.slice(0, MEMO_PREVIEW_MAX)}…(생략)` : m) : "" } : {}),
+    // 세부 메모로 일원화하기 전 별도 컬럼에 남은 기록 (있을 때만)
+    ...(t.retrospective_memo?.trim() ? { legacy_retrospective: t.retrospective_memo.trim() } : {}),
+    ...(t.used_tools?.length ? { legacy_used_tools: t.used_tools } : {}),
   };
+}
+
+/** 일정 id 목록 → 세부 메모 (RLS로 본인 행만) */
+async function loadMemos(ctx: ToolContext, ids: string[]): Promise<Map<string, string>> {
+  const memos = new Map<string, string>();
+  if (!ids.length) return memos;
+  const { data, error } = await ctx.supabase.from("todo_details").select("todo_id, memo").in("todo_id", ids);
+  if (error) {
+    console.error("[assistant] loadMemos failed", error.message);
+    return memos;
+  }
+  for (const r of (data ?? []) as { todo_id: string; memo: string | null }[]) memos.set(r.todo_id, r.memo ?? "");
+  return memos;
 }
 
 async function loadCategories(ctx: ToolContext): Promise<string[]> {
@@ -100,15 +118,13 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: "search_todos",
     description:
-      "사용자의 일정(todos)을 전체 기간(과거·미래)에서 조회한다. 작년 유사 업무 레퍼런스, 퇴근 회고 메모(retrospective_memo) 확인, 특정 기간 일정 확인에 사용. 최신 날짜순 최대 30건.",
+      "사용자의 일정(todos)을 전체 기간(과거·미래)에서 조회한다. 각 일정의 세부 메모(memo: 업무 재료·회고·사용 도구·노하우 기록)를 함께 돌려준다. 작년 유사 업무 레퍼런스, 과거 회고·노하우 확인, 특정 기간 일정 확인에 사용. 최신 날짜순 최대 30건.",
     parametersJsonSchema: {
       type: "object",
       properties: {
-        keyword: { type: "string", description: "제목·2차 태그·회고 메모에서 찾을 키워드 (부분 일치)" },
+        keyword: { type: "string", description: "제목·2차 태그·세부 메모 내용에서 찾을 키워드 (부분 일치)" },
         startDate: { type: "string", description: "조회 시작일 YYYY-MM-DD (포함)" },
         endDate: { type: "string", description: "조회 종료일 YYYY-MM-DD (포함)" },
-        aiTags: { type: "array", items: { type: "string" }, description: "이 중 하나라도 포함된 ai_tags" },
-        usedTools: { type: "array", items: { type: "string" }, description: "이 중 하나라도 포함된 used_tools" },
         onlyIncomplete: { type: "boolean", description: "true면 미완료(반복 없는) 일정만" },
         limit: { type: "integer", description: "최대 건수 (1~30, 기본 30)" },
       },
@@ -134,7 +150,6 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
               category: { type: "string", description: "1차 태그 — 사용자가 명시했을 때만 (예: 일정, 미팅, 보고, 마감, 회의, 업무)" },
               tags: { type: "array", items: { type: "string" }, description: "2차 태그 — 사용자가 명시했을 때만" },
               repeat: { type: "string", enum: REPEATS, description: "반복 (기본 none)" },
-              used_tools: { type: "array", items: { type: "string" }, description: "사용할 도구·시스템 (사용자가 말했을 때만)" },
             },
             required: ["title", "date"],
           },
@@ -162,34 +177,21 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: "update_todo_detail_memo",
     description:
-      "일정 상세 화면의 '세부 메모'(todo_details.memo)에 내용을 작성한다. 사용자가 '세부 메모에 ~ 적어줘', '메모 남겨줘', '메모에 추가해줘'처럼 일반 메모를 요청할 때만 사용한다. 회고·사용 도구 기록에는 쓰지 않는다. 기본은 기존 메모 아래 줄바꿈 후 이어 붙이기(append), '덮어써줘/바꿔줘'면 replace. todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
+      "일정 상세 화면의 '세부 메모'(todo_details.memo)에 기록한다. 일정의 모든 기록(업무 재료·참고 내용·회고·사용 도구·노하우)은 이 도구 하나로 세부 메모에 저장한다. '세부 메모에 ~ 적어줘', '메모 남겨줘', '회고 남겨줘/정리해줘', '사용 도구 기록해줘' 모두 해당. 기본은 기존 메모 아래 줄바꿈 후 이어 붙이기(append), 사용자가 '덮어써줘/바꿔줘'라고 할 때만 replace. todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
     parametersJsonSchema: {
       type: "object",
       properties: {
         todoId: { type: "string", description: "일정 id" },
         date: { type: "string", description: "일정 날짜 YYYY-MM-DD (todoId가 없을 때)" },
         titleQuery: { type: "string", description: "제목 일부 (todoId가 없을 때)" },
-        memo: { type: "string", description: "세부 메모에 쓸 내용 (사용자가 말한 내용을 그대로, 필요하면 짧게 정리)" },
+        memo: {
+          type: "string",
+          description:
+            "세부 메모에 쓸 내용. 일반 메모는 사용자가 말한 내용을 그대로(필요하면 짧게 정리). 회고는 '[회고 YYYY-MM-DD] 내용', 사용 도구는 '사용 도구: A, B'처럼 머리말을 붙여 나중에 검색되게 쓴다.",
+        },
         mode: { type: "string", enum: ["append", "replace"], description: "append(기본): 기존 내용 뒤에 줄바꿈 후 추가 / replace: 덮어쓰기" },
       },
       required: ["memo"],
-    },
-  },
-  {
-    name: "update_retrospective",
-    description:
-      "특정 일정의 '회고 메모'(retrospective_memo), 자동 추출 태그(ai_tags), 사용 도구(used_tools)를 저장한다. 사용자가 '회고 남겨줘', '회고 정리해줘', '사용 도구 기록해줘', '태그 달아줘'처럼 회고·도구·태그를 요청할 때만 사용한다. 일반 세부 메모 요청에는 쓰지 않는다(update_todo_detail_memo 사용). todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
-    parametersJsonSchema: {
-      type: "object",
-      properties: {
-        todoId: { type: "string", description: "일정 id" },
-        date: { type: "string", description: "일정 날짜 YYYY-MM-DD (todoId가 없을 때)" },
-        titleQuery: { type: "string", description: "제목 일부 (todoId가 없을 때)" },
-        retrospective_memo: { type: "string", description: "회고 메모 (생략 시 기존 유지, 빈 문자열이면 삭제)" },
-        ai_tags: { type: "array", items: { type: "string" } },
-        used_tools: { type: "array", items: { type: "string" } },
-        tagMode: { type: "string", enum: ["merge", "replace"], description: "태그 저장 방식 (기본 merge: 기존 값에 추가)" },
-      },
     },
   },
 ];
@@ -201,16 +203,35 @@ async function searchTodos(args: Record<string, unknown>, ctx: ToolContext): Pro
   const start = isoDate(args.startDate);
   const end = isoDate(args.endDate);
   const keyword = safeTerm(args.keyword).replace(/^#/, "");
-  const aiTags = tagList(args.aiTags);
-  const usedTools = tagList(args.usedTools);
   const onlyIncomplete = args.onlyIncomplete === true;
+
+  // 세부 메모(todo_details.memo)에 키워드가 들어 있는 일정 id → 제목 검색과 OR로 묶음
+  let memoIds: string[] = [];
+  if (keyword) {
+    const { data, error } = await ctx.supabase
+      .from("todo_details")
+      .select("todo_id")
+      .ilike("memo", `%${keyword}%`)
+      // id 목록이 요청 URL에 들어가므로 길이 제한 (uuid 100개 ≈ 3.7KB)
+      .limit(100);
+    if (error) console.error("[assistant] memo search failed", error.message);
+    else memoIds = [...new Set(((data ?? []) as { todo_id: string }[]).map((r) => r.todo_id).filter(Boolean))];
+  }
 
   let q = ctx.supabase.from("todos").select(TODO_COLUMNS).eq("user_id", ctx.userId);
   if (start) q = q.gte("date", start);
   if (end) q = q.lte("date", end);
-  if (keyword) q = q.or(`title.ilike.%${keyword}%,retrospective_memo.ilike.%${keyword}%,tags.cs.{"${keyword}"}`);
-  if (aiTags.length) q = q.overlaps("ai_tags", aiTags);
-  if (usedTools.length) q = q.overlaps("used_tools", usedTools);
+  if (keyword) {
+    q = q.or(
+      [
+        `title.ilike.%${keyword}%`,
+        `tags.cs.{"${keyword}"}`,
+        // 일원화 이전에 별도 컬럼에 남은 회고도 계속 검색되도록
+        `retrospective_memo.ilike.%${keyword}%`,
+        ...(memoIds.length ? [`id.in.(${memoIds.join(",")})`] : []),
+      ].join(","),
+    );
+  }
   if (onlyIncomplete) q = q.eq("repeat", "none");
 
   // 미완료 여부(date = any(completed_dates))는 PostgREST로 표현하기 어려워 넉넉히 받아 거름
@@ -222,7 +243,11 @@ async function searchTodos(args: Record<string, unknown>, ctx: ToolContext): Pro
 
   let rows = (data ?? []) as TodoRow[];
   if (onlyIncomplete) rows = rows.filter((t) => !isDone(t)).slice(0, limit);
-  return { count: rows.length, todos: rows.map(view) };
+  const memos = await loadMemos(
+    ctx,
+    rows.map((t) => t.id),
+  );
+  return { count: rows.length, todos: rows.map((t) => view(t, memos.get(t.id) ?? "")) };
 }
 
 async function createTodos(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
@@ -270,7 +295,6 @@ async function createTodos(args: Record<string, unknown>, ctx: ToolContext): Pro
       category: tagInfo.category || DEFAULT_CATEGORY,
       tags: tagInfo.tags.length ? tagInfo.tags : [DEFAULT_TAG],
       repeat,
-      used_tools: tagList(t.used_tools),
     });
     tagSources.push(tagInfo.source);
   });
@@ -358,7 +382,7 @@ async function findTodo(args: Record<string, unknown>, ctx: ToolContext): Promis
   if (!rows.length) return { result: { error: "조건에 맞는 일정을 찾지 못했습니다." } };
   if (rows.length > 1) {
     return {
-      result: { needsChoice: true, message: "후보가 여러 개입니다. 사용자에게 어떤 일정인지 확인하세요.", candidates: rows.map(view) },
+      result: { needsChoice: true, message: "후보가 여러 개입니다. 사용자에게 어떤 일정인지 확인하세요.", candidates: rows.map((t) => view(t)) },
     };
   }
   return { todo: rows[0] };
@@ -401,45 +425,15 @@ async function updateTodoDetailMemo(args: Record<string, unknown>, ctx: ToolCont
   };
 }
 
-async function updateRetrospective(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  const found = await findTodo(args, ctx);
-  if ("result" in found) return found.result;
-  const { todo } = found;
-
-  const replace = args.tagMode === "replace";
-  const patch: Record<string, unknown> = {};
-  if (typeof args.retrospective_memo === "string") patch.retrospective_memo = args.retrospective_memo.trim().slice(0, 5000) || null;
-  if (Array.isArray(args.ai_tags)) {
-    const next = tagList(args.ai_tags);
-    patch.ai_tags = replace ? next : tagList([...(todo.ai_tags ?? []), ...next]);
-  }
-  if (Array.isArray(args.used_tools)) {
-    const next = tagList(args.used_tools);
-    patch.used_tools = replace ? next : tagList([...(todo.used_tools ?? []), ...next]);
-  }
-  if (!Object.keys(patch).length) return { error: "저장할 내용(retrospective_memo, ai_tags, used_tools)이 없습니다." };
-
-  const { data, error } = await ctx.supabase
-    .from("todos")
-    .update(patch)
-    .eq("user_id", ctx.userId)
-    .eq("id", todo.id)
-    .select(TODO_COLUMNS)
-    .single();
-  if (error) return { error: error.message };
-  return { updated: true, target: "회고 메모", todo: view(data as TodoRow) };
-}
-
 const EXECUTORS: Record<string, (args: Record<string, unknown>, ctx: ToolContext) => Promise<ToolResult>> = {
   search_todos: searchTodos,
   create_todos: createTodos,
   carry_over_todos: carryOverTodos,
-  update_retrospective: updateRetrospective,
   update_todo_detail_memo: updateTodoDetailMemo,
 };
 
 /** 데이터를 바꾸는 도구 — 클라이언트가 목록을 다시 불러올지 판단하는 데 사용 */
-export const MUTATING_TOOLS = new Set(["create_todos", "carry_over_todos", "update_retrospective", "update_todo_detail_memo"]);
+export const MUTATING_TOOLS = new Set(["create_todos", "carry_over_todos", "update_todo_detail_memo"]);
 
 export async function runTool(name: string, args: Record<string, unknown> | undefined, ctx: ToolContext): Promise<ToolResult> {
   const exec = EXECUTORS[name];
