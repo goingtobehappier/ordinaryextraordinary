@@ -7,7 +7,23 @@ import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
 
 type ChatMessage = { role: "user" | "assistant"; content: string; error?: boolean };
-type AssistantResponse = { reply?: string; actions?: unknown[]; changed?: boolean; error?: string };
+type AssistantResponse = {
+  reply?: string;
+  actions?: unknown[];
+  changed?: boolean;
+  error?: string;
+  stage?: string;
+  toolErrors?: string[];
+};
+
+/** 서버가 알려준 실패 단계 → 화면 표시용 이름 */
+const STAGE_LABEL: Record<string, string> = {
+  config: "서버 설정",
+  auth: "인증",
+  request: "요청 형식",
+  gemini: "Gemini API 호출",
+  server: "서버 처리",
+};
 
 const QUICK_PROMPTS = [
   "오늘 일정 브리핑",
@@ -39,23 +55,44 @@ class AssistantError extends Error {
 async function askAssistant(messages: ChatMessage[]): Promise<AssistantResponse> {
   const { data } = await createClient().auth.getSession();
   const token = data.session?.access_token;
-  const res = await fetch("/api/assistant", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
-      messages: messages
-        .filter((m) => !m.error)
-        .slice(-HISTORY_LIMIT)
-        .map(({ role, content }) => ({ role, content })),
-    }),
-  });
 
-  const body = (await res.json().catch(() => ({}))) as AssistantResponse;
-  if (res.status === 401) throw new AssistantError("로그인이 만료되었습니다. 다시 로그인해 주세요.", false);
-  if (!res.ok) throw new AssistantError(body.error ?? "AI 매니저 응답을 받지 못했습니다.", body.changed === true);
+  let res: Response;
+  try {
+    res = await fetch("/api/assistant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        messages: messages
+          .filter((m) => !m.error)
+          .slice(-HISTORY_LIMIT)
+          .map(({ role, content }) => ({ role, content })),
+      }),
+    });
+  } catch (e) {
+    throw new AssistantError(`[네트워크] 서버에 연결하지 못했습니다. (${e instanceof Error ? e.message : String(e)})`, false);
+  }
+
+  // 실패 응답이 JSON이 아닐 수도 있음 (예: 호스팅 시간 초과 페이지)
+  const text = await res.text();
+  let body: AssistantResponse = {};
+  try {
+    body = text ? (JSON.parse(text) as AssistantResponse) : {};
+  } catch {
+    body = { error: text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300) };
+  }
+
+  if (!res.ok) {
+    const stage = body.stage ? (STAGE_LABEL[body.stage] ?? body.stage) : res.status === 401 ? "인증" : "응답";
+    const lines = [
+      `[${stage} 실패 · HTTP ${res.status}]`,
+      body.error || res.statusText || "AI 매니저 응답을 받지 못했습니다.",
+      ...(body.toolErrors?.length ? ["", "DB 도구 오류:", ...body.toolErrors] : []),
+    ];
+    throw new AssistantError(lines.join("\n"), body.changed === true);
+  }
   return body;
 }
 

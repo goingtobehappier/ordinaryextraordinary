@@ -367,9 +367,12 @@ export async function runTool(name: string, args: Record<string, unknown> | unde
   const exec = EXECUTORS[name];
   if (!exec) return { error: `알 수 없는 도구: ${name}` };
   try {
-    return await exec(args ?? {}, ctx);
+    const result = await exec(args ?? {}, ctx);
+    // DB 오류 등은 모델에게 결과로 넘기되 서버 로그에도 남김
+    if (result.error) console.error(`[assistant] tool ${name} returned error:`, result.error, { args });
+    return result;
   } catch (e) {
-    console.error("[assistant] tool failed", name, e);
-    return { error: "도구 실행 중 오류가 발생했습니다." };
+    console.error(`[assistant] tool ${name} threw`, e instanceof Error ? e.stack : e, { args });
+    return { error: `도구 실행 중 오류: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
