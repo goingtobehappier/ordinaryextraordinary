@@ -34,7 +34,7 @@ export function Header({ user }: { user: CockpitUser }) {
 
   return (
     // 데스크톱: 한 줄(h-16) / 태블릿·모바일: 검색창을 아랫줄 전체 폭으로 내려 줄바꿈
-    <GlassPanel className="relative z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2.5 rounded-[14px] px-3 py-2.5 sm:px-5 md:flex-nowrap md:gap-x-4 lg:h-16 lg:py-0 xl:gap-x-6 print:hidden">
+    <GlassPanel className="relative z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2.5 rounded-lg px-3 py-2.5 sm:px-5 md:flex-nowrap md:gap-x-4 lg:h-16 lg:py-0 xl:gap-x-6 print:hidden">
       <Link
         href="/"
         onClick={(e) => {
@@ -43,7 +43,7 @@ export function Header({ user }: { user: CockpitUser }) {
           e.preventDefault();
           goHome();
         }}
-        className="shrink-0 cursor-pointer rounded-lg outline-none transition-[opacity,transform] duration-150 ease-out hover:scale-[1.03] hover:opacity-85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-apple-blue/40 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+        className="shrink-0 cursor-pointer rounded-md outline-none transition-[opacity,transform] duration-150 ease-out hover:scale-[1.03] hover:opacity-85 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-apple-blue/40 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
         aria-label="홈: 주간 보기 · 오늘로 이동"
         title="홈 (주간 보기 · 오늘)"
       >
@@ -118,7 +118,7 @@ function ViewSwitcher() {
   const openSummary = useCockpit((s) => s.openSummary);
   const shortcuts = useCockpit((s) => s.shortcuts);
   return (
-    <div className="flex shrink-0 rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 전환">
+    <div className="flex shrink-0 rounded-md bg-black/5 p-0.5" role="tablist" aria-label="보기 전환">
       {VIEWS.map(({ id, label, icon: Icon, action }) => (
         <button
           key={id}

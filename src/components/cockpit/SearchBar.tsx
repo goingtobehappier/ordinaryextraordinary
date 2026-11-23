@@ -112,7 +112,7 @@ export function SearchBar() {
           }
         }}
         placeholder="할 일 · #태그 검색 (Enter: 전체 결과)"
-        className="h-10 w-full rounded-xl border border-black/5 bg-black/[0.04] pl-9 pr-20 text-sm outline-none transition-[background-color,box-shadow] placeholder:text-ink-2/70 focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
+        className="h-10 w-full rounded-md border border-black/5 bg-black/[0.04] pl-9 pr-20 text-sm outline-none transition-[background-color,box-shadow] placeholder:text-ink-2/70 focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
         autoComplete="off"
       />
       <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
@@ -130,7 +130,7 @@ export function SearchBar() {
       </div>
 
       {open && term && !inSearchView && (
-        <div className="absolute left-0 right-0 top-12 overflow-hidden rounded-xl border border-white/40 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl">
+        <div className="absolute left-0 right-0 top-12 overflow-hidden rounded-lg border border-white/40 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl">
           {loading && results.length === 0 ? (
             <div className="flex items-center gap-2 px-3 py-3 text-sm text-ink-2">
               <Loader2 className="size-4 animate-spin" /> 검색 중…
@@ -144,7 +144,7 @@ export function SearchBar() {
                 onMouseEnter={() => setActive(i)}
                 onClick={() => pick(t)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left",
+                  "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left",
                   i === active && "bg-apple-blue/10",
                 )}
               >

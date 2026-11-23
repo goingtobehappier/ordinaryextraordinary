@@ -59,7 +59,7 @@ export function LoginCard() {
         type="button"
         onClick={signInWithGoogle}
         disabled={pending}
-        className="mt-10 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-black/10 bg-white text-[15px] font-medium text-ink shadow-sm transition-[transform,box-shadow,background-color] duration-150 hover:bg-white/90 hover:shadow-md active:scale-[0.98] disabled:opacity-60"
+        className="mt-10 flex h-12 w-full items-center justify-center gap-3 rounded-md border border-black/10 bg-white text-[15px] font-medium text-ink shadow-sm transition-[transform,box-shadow,background-color] duration-150 hover:bg-white/90 hover:shadow-md active:scale-[0.98] disabled:opacity-60"
       >
         {pending ? <Loader2 className="size-5 animate-spin text-ink-2" /> : <GoogleLogo />}
         {pending ? "Google로 이동 중…" : "구글 계정으로 시작하기"}
@@ -68,7 +68,7 @@ export function LoginCard() {
       {error && (
         <p
           role="alert"
-          className="mt-4 flex items-start gap-2 rounded-lg bg-[#ff3b30]/10 px-3 py-2 text-left text-[13px] text-[#c4271d]"
+          className="mt-4 flex items-start gap-2 rounded-md bg-[#ff3b30]/10 px-3 py-2 text-left text-[13px] text-[#c4271d]"
         >
           <CircleAlert className="mt-0.5 size-4 shrink-0" />
           {error}

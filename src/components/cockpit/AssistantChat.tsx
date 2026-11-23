@@ -150,27 +150,29 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
       onKeyDown={onKeyDown}
       data-keep-selection
       className={cn(
-        "flex min-h-0 min-w-0 flex-col overflow-hidden bg-white print:hidden",
-        screen ? "" : "rounded-[4px] border border-black/[0.08] shadow-[0_1px_2px_rgb(0_0_0/0.04)]",
+        "flex min-h-0 min-w-0 flex-col overflow-hidden print:hidden",
+        // PC: 세부 메모 패널(GlassPanel)과 같은 곡률·보더·바탕·그림자 → 교체될 때 외곽선이 그대로 이어짐
+        screen ? "bg-white" : "rounded-lg border border-white/40 bg-white/70 drop-shadow-xl backdrop-blur-xl",
         className,
       )}
     >
       <header
         className={cn(
-          "flex shrink-0 items-center gap-2.5 border-b border-black/[0.06]",
-          screen ? "h-14 px-4 pt-[env(safe-area-inset-top)] box-content" : "h-12 pl-4 pr-2",
+          "flex shrink-0 items-center gap-3 border-b border-black/5",
+          // 헤더 리듬: 세부 메모 패널 헤더와 같은 여백(px-4 py-3, sm 이상 px-5 py-4)·아이콘 36px
+          screen ? "h-14 px-4 pt-[env(safe-area-inset-top)] box-content" : "px-4 py-3 sm:px-5 sm:py-4",
         )}
       >
-        <OEBuddy variant="icon" size={28} className="rounded-[4px]" />
+        <OEBuddy variant="icon" size={36} className="size-9" />
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold text-[#262626]">{ASSISTANT_NAME}</h2>
-          {screen && <p className="truncate text-[11px] text-ink-2">{formatLong(todayISO())}</p>}
+          <h2 className="truncate text-[15px] font-semibold text-[#262626]">{ASSISTANT_NAME}</h2>
+          <p className="truncate text-xs text-ink-2">{formatLong(todayISO())}</p>
         </div>
         <button
           type="button"
           onClick={reset}
           disabled={pending || empty}
-          className="inline-flex h-8 items-center gap-1 rounded-[4px] px-2 text-xs font-medium text-ink-2 transition-colors hover:bg-black/5 hover:text-[#262626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30 disabled:pointer-events-none disabled:opacity-40"
+          className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-ink-2 transition-colors hover:bg-black/5 hover:text-[#262626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30 disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="size-3.5" />
           초기화
@@ -182,14 +184,14 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
             onClick={close}
             aria-label={`${ASSISTANT_NAME} 닫고 메모로 돌아가기`}
             title="닫기 (Esc)"
-            className="flex size-8 items-center justify-center rounded-[4px] text-ink-2 transition-colors hover:bg-black/5 hover:text-[#262626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30"
+            className="flex size-8 items-center justify-center rounded-md text-ink-2 transition-colors hover:bg-black/5 hover:text-[#262626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30"
           >
             <X className="size-4" />
           </button>
         )}
       </header>
 
-      <div ref={listRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4" aria-live="polite">
+      <div ref={listRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5" aria-live="polite">
         {empty ? (
           <div className="flex flex-col gap-3">
             <p className="text-[13px] leading-relaxed text-ink-2">
@@ -208,7 +210,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
               <li key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
-                    "max-w-[85%] whitespace-pre-wrap break-keep rounded-[4px] px-3 py-2 text-[13px] leading-relaxed [overflow-wrap:anywhere]",
+                    "max-w-[85%] whitespace-pre-wrap break-keep rounded-md px-3 py-2 text-[13px] leading-relaxed [overflow-wrap:anywhere]",
                     m.role === "user"
                       ? "bg-[#262626] text-white"
                       : m.error
@@ -222,7 +224,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
             ))}
             {pending && (
               <li className="flex justify-start">
-                <div className="inline-flex items-center gap-2 rounded-[4px] border border-black/[0.06] bg-[#f6f6f6] px-3 py-2 text-[13px] text-ink-2">
+                <div className="inline-flex items-center gap-2 rounded-md border border-black/[0.06] bg-[#f6f6f6] px-3 py-2 text-[13px] text-ink-2">
                   <Loader2 className="size-3.5 animate-spin" />
                   처리 중
                 </div>
@@ -233,7 +235,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
       </div>
 
       {!empty && (
-        <div className="scroll-thin flex shrink-0 gap-2 overflow-x-auto border-t border-black/[0.06] px-4 py-2">
+        <div className="scroll-thin flex shrink-0 gap-2 overflow-x-auto border-t border-black/5 px-4 py-2 sm:px-5">
           {QUICK_PROMPTS.map((p) => (
             <QuickPrompt key={p} label={p} onClick={() => submit(p)} disabled={pending} compact />
           ))}
@@ -243,7 +245,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
       <form
         onSubmit={onSubmit}
         className={cn(
-          "flex shrink-0 items-end gap-2 border-t border-black/[0.06] p-3",
+          "flex shrink-0 items-end gap-2 border-t border-black/5 px-4 py-3 sm:px-5",
         )}
       >
         <label htmlFor={`assistant-input-${variant}`} className="sr-only">
@@ -258,7 +260,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
           rows={1}
           maxLength={4000}
           placeholder={voice.listening ? "듣는 중" : "일정 추가·조회를 입력하세요"}
-          className="max-h-32 min-h-10 flex-1 resize-none rounded-[4px] border border-black/10 bg-white px-3 py-2 text-base text-[#262626] outline-none transition-[border-color,box-shadow] [field-sizing:content] placeholder:text-ink-2/70 focus:border-[#262626]/40 focus:ring-2 focus:ring-[#262626]/10 md:text-[13px] md:leading-6"
+          className="max-h-32 min-h-10 flex-1 resize-none rounded-md border border-black/10 bg-white px-3 py-2 text-base text-[#262626] outline-none transition-[border-color,box-shadow] [field-sizing:content] placeholder:text-ink-2/70 focus:border-[#262626]/40 focus:ring-2 focus:ring-[#262626]/10 md:text-[13px] md:leading-6"
         />
         {voice.supported && (
           <button
@@ -270,7 +272,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
             aria-label={voice.listening ? "음성 입력 중지" : "음성으로 입력"}
             aria-pressed={voice.listening}
             className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-[4px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30",
+              "flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30",
               voice.listening
                 ? "border-[#c4271d]/30 bg-[#c4271d]/[0.08] text-[#c4271d]"
                 : "border-black/10 bg-white text-ink-2 hover:text-[#262626]",
@@ -283,7 +285,7 @@ export function AssistantChat({ variant, className }: { variant: "panel" | "scre
           type="submit"
           disabled={pending || !input.trim()}
           aria-label="보내기"
-          className="flex size-10 shrink-0 items-center justify-center rounded-[4px] bg-[#262626] text-white transition-[background-color,transform] hover:bg-black active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-30"
+          className="flex size-10 shrink-0 items-center justify-center rounded-md bg-[#262626] text-white transition-[background-color,transform] hover:bg-black active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-30"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
         </button>
@@ -309,7 +311,7 @@ function QuickPrompt({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "rounded-[4px] border border-black/10 bg-white text-[#262626] transition-colors hover:border-[#262626]/30 hover:bg-[#f6f6f6]",
+        "rounded-md border border-black/10 bg-white text-[#262626] transition-colors hover:border-[#262626]/30 hover:bg-[#f6f6f6]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]/30 disabled:pointer-events-none disabled:opacity-40",
         compact ? "h-8 shrink-0 whitespace-nowrap px-3 text-xs" : "min-h-11 px-3 py-2.5 text-left text-[13px]",
       )}

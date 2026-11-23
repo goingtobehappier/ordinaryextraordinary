@@ -121,7 +121,7 @@ export function WeekBar() {
               aria-pressed={selected}
               className={cn(
                 // 모바일: 요일·날짜·진행률만 표시하는 컴팩트 카드 / 태블릿 이상: 지정 시간 일정까지
-                "group relative flex h-[84px] min-w-0 flex-col overflow-hidden rounded-xl border px-1.5 py-1.5 text-left sm:px-2 md:h-[118px] md:px-3 md:py-2",
+                "group relative flex h-[84px] min-w-0 flex-col overflow-hidden rounded-md border px-1.5 py-1.5 text-left sm:px-2 md:h-[118px] md:px-3 md:py-2",
                 "transition-[background-color,box-shadow,transform,border-color] duration-200 active:scale-[0.98]",
                 selected
                   ? "border-transparent bg-apple-blue text-white shadow-lg shadow-apple-blue/30"

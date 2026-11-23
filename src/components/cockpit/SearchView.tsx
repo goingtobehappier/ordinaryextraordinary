@@ -201,7 +201,7 @@ export function SearchView() {
                       onKeyDown={(e) => e.key === "Enter" && open(t)}
                       title="클릭: 상세 보기 · 더블클릭: 해당 날짜로 이동"
                       className={cn(
-                        "grid cursor-pointer grid-cols-[92px_minmax(0,1fr)] md:grid-cols-[120px_96px_minmax(0,1fr)_minmax(0,200px)] xl:grid-cols-[150px_120px_minmax(0,1fr)_minmax(0,300px)] items-center gap-4 rounded-lg print:grid-cols-[100px_76px_minmax(0,1fr)_150px] print:gap-2.5 print:px-0 print:text-[9.5pt] print:items-start print:rounded-none print:border-b print:border-dotted print:py-1.5 px-3 py-2.5 text-sm outline-none",
+                        "grid cursor-pointer grid-cols-[92px_minmax(0,1fr)] md:grid-cols-[120px_96px_minmax(0,1fr)_minmax(0,200px)] xl:grid-cols-[150px_120px_minmax(0,1fr)_minmax(0,300px)] items-center gap-4 rounded-md print:grid-cols-[100px_76px_minmax(0,1fr)_150px] print:gap-2.5 print:px-0 print:text-[9.5pt] print:items-start print:rounded-none print:border-b print:border-dotted print:py-1.5 px-3 py-2.5 text-sm outline-none",
                         "transition-[background-color,box-shadow] focus-visible:ring-2 focus-visible:ring-apple-blue/40",
                         selected ? "bg-apple-blue/[0.08] ring-1 ring-apple-blue/30" : "hover:bg-white/70",
                       )}

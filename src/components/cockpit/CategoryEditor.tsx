@@ -78,10 +78,10 @@ export function CategoryEditor() {
           e.preventDefault();
           void save();
         }}
-        className="max-h-[90dvh] w-[min(440px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-white/40 bg-white/80 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
+        className="max-h-[90dvh] w-[min(440px,calc(100vw-24px))] overflow-y-auto rounded-lg border border-white/40 bg-white/80 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
       >
         <div className="mb-4 flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-apple-blue/10">
+          <div className="flex size-9 items-center justify-center rounded-md bg-apple-blue/10">
             <Pencil className="size-5 text-apple-blue" />
           </div>
           <div>
@@ -95,7 +95,7 @@ export function CategoryEditor() {
           </GlassButton>
         </div>
 
-        <ol className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white/60">
+        <ol className="divide-y divide-black/5 overflow-hidden rounded-md border border-black/5 bg-white/60">
           {draft.map((d, i) => {
             const locked = i === WORK_SLOT;
             const err = errors[i];
@@ -106,7 +106,7 @@ export function CategoryEditor() {
                   <span className={cn("size-2.5 shrink-0 rounded-full", SLOT_STYLES[i].dot)} />
                   {locked ? (
                     <div
-                      className="flex h-9 flex-1 items-center gap-2 rounded-lg bg-black/[0.04] px-2.5 text-sm text-ink-2"
+                      className="flex h-9 flex-1 items-center gap-2 rounded-md bg-black/[0.04] px-2.5 text-sm text-ink-2"
                       title="'업무' 태그는 이름 변경·삭제·순서 변경이 불가능합니다"
                     >
                       <span className="font-medium">{d}</span>
@@ -127,7 +127,7 @@ export function CategoryEditor() {
                       aria-label={`${i + 1}번 태그 이름`}
                       aria-invalid={!!err}
                       className={cn(
-                        "h-9 min-w-0 flex-1 rounded-lg border bg-white/70 px-2.5 text-sm outline-none focus:ring-2",
+                        "h-9 min-w-0 flex-1 rounded-md border bg-white/70 px-2.5 text-sm outline-none focus:ring-2",
                         err ? "border-[#ff3b30]/50 focus:ring-[#ff3b30]/30" : "border-black/5 focus:ring-apple-blue/40",
                       )}
                     />

@@ -431,7 +431,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
   return (
     <GlassPanel className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden print:hidden", className)}>
       <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3 sm:px-5 sm:py-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-apple-mint/15">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-apple-mint/15">
           <NotebookPen className="size-[18px] text-[#00a29b]" />
         </div>
         <div className="min-w-0 flex-1">
@@ -441,7 +441,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         {undo && (
           <button
             onClick={restoreUndo}
-            className="flex shrink-0 items-center gap-1 rounded-lg bg-apple-blue/10 px-2 py-1.5 text-xs font-medium text-apple-blue transition-colors hover:bg-apple-blue/15"
+            className="flex shrink-0 items-center gap-1 rounded-md bg-apple-blue/10 px-2 py-1.5 text-xs font-medium text-apple-blue transition-colors hover:bg-apple-blue/15"
             title={UNDO_COPY[undo.reason].title}
           >
             <Undo2 className="size-3.5" />
@@ -451,7 +451,7 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         <button
           onClick={clearNote}
           disabled={!loaded || !content}
-          className="shrink-0 rounded-lg p-1.5 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink disabled:opacity-40"
+          className="shrink-0 rounded-md p-1.5 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink disabled:opacity-40"
           title="초기화: 내용과 제목·목록 서식을 모두 지우고 일반 본문으로 (되돌리기 가능)"
           aria-label="메모 초기화"
         >
@@ -460,13 +460,13 @@ function NoteBody({ date, userId, className }: { date: string; userId: string; c
         <button
           onClick={applyTemplate}
           disabled={!loaded}
-          className="shrink-0 rounded-lg p-1.5 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink disabled:opacity-40"
+          className="shrink-0 rounded-md p-1.5 text-ink-2 transition-colors hover:bg-black/5 hover:text-ink disabled:opacity-40"
           title="주요사항 · 회고 템플릿 적용 (작성 중인 내용은 원복 가능)"
           aria-label="템플릿 적용"
         >
           <LayoutTemplate className="size-4" />
         </button>
-        <div className="flex shrink-0 rounded-lg bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">
+        <div className="flex shrink-0 rounded-md bg-black/5 p-0.5" role="tablist" aria-label="보기 모드">
           {(
             [
               ["live", PencilLine, "작성 (서식)"],
@@ -582,7 +582,7 @@ function TemplateButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="absolute left-5 top-14 rounded-lg bg-apple-blue/10 px-2.5 py-1 text-xs font-medium text-apple-blue hover:bg-apple-blue/15"
+      className="absolute left-5 top-14 rounded-md bg-apple-blue/10 px-2.5 py-1 text-xs font-medium text-apple-blue hover:bg-apple-blue/15"
       title="주요사항 · 회고 템플릿"
     >
       템플릿으로 시작하기 (주요사항 · 회고)

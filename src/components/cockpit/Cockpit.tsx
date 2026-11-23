@@ -319,7 +319,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
       {error && (
         <div
           role="alert"
-          className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-1/2 z-50 print:hidden flex w-max max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/40 bg-white/85 px-4 py-3 text-sm text-[#c4271d] shadow-xl backdrop-blur-xl md:bottom-6"
+          className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-1/2 z-50 print:hidden flex w-max max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-lg border border-white/40 bg-white/85 px-4 py-3 text-sm text-[#c4271d] shadow-xl backdrop-blur-xl md:bottom-6"
         >
           <CircleAlert className="size-4 shrink-0" />
           <span className="min-w-0 break-keep">{error}</span>
@@ -335,7 +335,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 export function CockpitSkeleton() {
   return (
     <div className="flex min-h-dvh flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5">
-      <GlassPanel className="h-16 animate-pulse rounded-2xl" />
+      <GlassPanel className="h-16 animate-pulse rounded-lg" />
       <div className="flex flex-col gap-3 sm:gap-4 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-5">
         <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5">
           <GlassPanel className="h-[120px] animate-pulse md:h-[170px]" />

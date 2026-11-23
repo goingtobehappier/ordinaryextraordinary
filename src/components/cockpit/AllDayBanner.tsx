@@ -173,7 +173,7 @@ function AllDayDialog({ date, event, onClose }: { date: string; event: AllDayEve
           void save();
         }}
         // 모바일: 하단 시트 / sm 이상: 가운데 다이얼로그
-        className="w-full max-w-[420px] rounded-t-2xl border border-white/40 bg-white/90 p-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-2xl sm:rounded-2xl sm:pb-5"
+        className="w-full max-w-[420px] rounded-t-lg border border-white/40 bg-white/90 p-5 pb-[max(20px,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-2xl sm:rounded-lg sm:pb-5"
       >
         <div className="flex items-center gap-2">
           <h2 id="all-day-title" className="flex-1 text-[15px] font-semibold text-ink">
@@ -212,7 +212,7 @@ function AllDayDialog({ date, event, onClose }: { date: string; event: AllDayEve
         </label>
         <div className="mt-1 flex gap-2">
           <span
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg border text-lg"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md border text-lg"
             style={{ backgroundColor: tint(form.color, "1f"), borderColor: tint(form.color, "40") }}
             aria-hidden
           >
@@ -239,7 +239,7 @@ function AllDayDialog({ date, event, onClose }: { date: string; event: AllDayEve
               aria-checked={form.emoji === em}
               onClick={() => patch({ emoji: em })}
               className={cn(
-                "flex size-8 items-center justify-center rounded-lg text-base transition-colors",
+                "flex size-8 items-center justify-center rounded-md text-base transition-colors",
                 form.emoji === em ? "bg-apple-blue/15 ring-1 ring-apple-blue/40" : "hover:bg-black/5",
               )}
             >

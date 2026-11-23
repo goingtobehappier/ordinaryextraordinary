@@ -34,7 +34,7 @@ export function FloatingAssistant() {
       <span
         role="tooltip"
         id={`${OE_TRIGGER_ID}-tip`}
-        className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-[4px] bg-[#262626] px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/oe:opacity-100 group-focus-within/oe:opacity-100"
+        className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#262626] px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover/oe:opacity-100 group-focus-within/oe:opacity-100"
       >
         {ASSISTANT_NAME}
       </span>
@@ -47,7 +47,7 @@ export function FloatingAssistant() {
         aria-describedby={`${OE_TRIGGER_ID}-tip`}
         aria-expanded={open}
         className={cn(
-          "oe-hop group relative flex size-14 items-end justify-center rounded-[8px] bg-transparent",
+          "oe-hop group relative flex size-14 items-end justify-center rounded-lg bg-transparent",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apple-mint/60 focus-visible:ring-offset-2",
         )}
       >

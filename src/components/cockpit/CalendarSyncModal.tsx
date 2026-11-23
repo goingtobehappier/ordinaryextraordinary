@@ -80,10 +80,10 @@ export function CalendarSyncModal() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="calendar-sync-title"
-        className="max-h-[90dvh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-white/40 bg-white/85 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
+        className="max-h-[90dvh] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-lg border border-white/40 bg-white/85 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
       >
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#8e44ad]/10">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#8e44ad]/10">
             <CalendarPlus className="size-5 text-[#8e44ad]" />
           </div>
           <div className="min-w-0 flex-1">
@@ -97,7 +97,7 @@ export function CalendarSyncModal() {
           </button>
         </div>
 
-        <form onSubmit={submit} className="space-y-3 rounded-xl border border-black/5 bg-white/60 p-3 sm:p-4">
+        <form onSubmit={submit} className="space-y-3 rounded-md border border-black/5 bg-white/60 p-3 sm:p-4">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-ink-2">iCal URL</span>
             <GlassInput
@@ -151,7 +151,7 @@ export function CalendarSyncModal() {
         </form>
 
         {message && (
-          <p role="alert" className="mt-3 flex items-start gap-1.5 rounded-lg bg-[#ff3b30]/[0.08] px-3 py-2 text-xs text-[#c4271d]">
+          <p role="alert" className="mt-3 flex items-start gap-1.5 rounded-md bg-[#ff3b30]/[0.08] px-3 py-2 text-xs text-[#c4271d]">
             <CircleAlert className="mt-px size-3.5 shrink-0" />
             <span className="break-keep">{message}</span>
           </p>
@@ -168,11 +168,11 @@ export function CalendarSyncModal() {
             )}
           </div>
           {sources.length === 0 ? (
-            <p className="rounded-lg bg-black/[0.03] px-3 py-4 text-center text-xs text-ink-2">아직 연동된 캘린더가 없습니다.</p>
+            <p className="rounded-md bg-black/[0.03] px-3 py-4 text-center text-xs text-ink-2">아직 연동된 캘린더가 없습니다.</p>
           ) : (
             <ul className="space-y-1.5">
               {sources.map((s) => (
-                <li key={s.id} className="rounded-lg border border-black/5 bg-white/60 px-3 py-2">
+                <li key={s.id} className="rounded-md border border-black/5 bg-white/60 px-3 py-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="size-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
                     <div className="min-w-0 flex-1">

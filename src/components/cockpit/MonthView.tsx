@@ -134,7 +134,7 @@ export function MonthView() {
                 dropToDate(e, iso);
               }}
               className={cn(
-                "flex min-h-0 min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border p-1 outline-none transition-[background-color,border-color,box-shadow] sm:p-1.5",
+                "flex min-h-0 min-w-0 cursor-pointer flex-col overflow-hidden rounded-md border p-1 outline-none transition-[background-color,border-color,box-shadow] sm:p-1.5",
                 "focus-visible:ring-2 focus-visible:ring-apple-blue/40",
                 selected ? "border-apple-blue/50 bg-apple-blue/[0.07]" : "border-white/50 bg-white/40 hover:bg-white/70",
                 !inMonth && "opacity-45",

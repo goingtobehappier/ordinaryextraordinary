@@ -97,7 +97,7 @@ export const TagChipInput = forwardRef<HTMLInputElement, Props>(function TagChip
 
   return (
     <div className={cn("relative", className)}>
-      <div className="flex h-9 items-center gap-1 overflow-x-auto rounded-lg border border-black/5 bg-white/60 pl-2 pr-1.5 transition-[box-shadow,background-color] scroll-thin focus-within:bg-white/90 focus-within:ring-2 focus-within:ring-apple-blue/40">
+      <div className="flex h-9 items-center gap-1 overflow-x-auto rounded-md border border-black/5 bg-white/60 pl-2 pr-1.5 transition-[box-shadow,background-color] scroll-thin focus-within:bg-white/90 focus-within:ring-2 focus-within:ring-apple-blue/40">
         <Hash className="size-3.5 shrink-0 text-ink-2" />
         {chips.map((c) => (
           <span
@@ -150,7 +150,7 @@ export const TagChipInput = forwardRef<HTMLInputElement, Props>(function TagChip
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 top-11 z-40 max-h-64 w-56 overflow-y-auto rounded-xl border border-white/40 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl scroll-thin"
+          className="absolute left-0 top-11 z-40 max-h-64 w-56 overflow-y-auto rounded-lg border border-white/40 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl scroll-thin"
         >
           <li className="px-2 pb-1 pt-0.5 text-[11px] text-ink-2">기존 태그 · ↑↓ 선택 · Space 칩 · Enter 제출</li>
           {suggestions.map((tag, i) => (
@@ -166,7 +166,7 @@ export const TagChipInput = forwardRef<HTMLInputElement, Props>(function TagChip
               }}
               onMouseEnter={() => setActive(i)}
               className={cn(
-                "cursor-pointer rounded-lg px-2 py-1.5 text-sm",
+                "cursor-pointer rounded-md px-2 py-1.5 text-sm",
                 i === active ? "bg-apple-blue/10 text-apple-blue" : "text-ink",
               )}
             >

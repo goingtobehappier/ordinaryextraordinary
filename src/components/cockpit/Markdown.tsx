@@ -49,7 +49,7 @@ export function Markdown({
       while (i < lines.length && !/^\s*```/.test(lines[i])) code.push(lines[i++]);
       i++; // 닫는 ```
       out.push(
-        <pre key={`c${start}`} className="my-2 overflow-x-auto rounded-lg bg-ink/[0.06] p-3 font-mono text-[12.5px] leading-relaxed scroll-thin">
+        <pre key={`c${start}`} className="my-2 overflow-x-auto rounded-md bg-ink/[0.06] p-3 font-mono text-[12.5px] leading-relaxed scroll-thin">
           <code>{code.join("\n")}</code>
         </pre>,
       );

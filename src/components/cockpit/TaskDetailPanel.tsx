@@ -244,7 +244,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
           onBlur={commitTitle}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           className={cn(
-            "min-w-0 flex-1 rounded-lg bg-transparent px-1 text-[17px] font-semibold outline-none focus:bg-white/70",
+            "min-w-0 flex-1 rounded-md bg-transparent px-1 text-[17px] font-semibold outline-none focus:bg-white/70",
             done && "text-ink-2 line-through",
           )}
           maxLength={300}
@@ -363,7 +363,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
             placeholder={
               loaded ? "세부 메모를 작성하세요…" : loadState === "error" ? "불러오지 못했습니다. 상단의 다시 시도를 눌러 주세요." : "불러오는 중…"
             }
-            className="min-h-20 flex-1 resize-none rounded-xl border border-black/5 bg-white/50 p-3 text-sm leading-relaxed outline-none transition-[background-color,box-shadow] focus:bg-white/80 focus:ring-2 focus:ring-apple-blue/30 scroll-thin"
+            className="min-h-20 flex-1 resize-none rounded-md border border-black/5 bg-white/50 p-3 text-sm leading-relaxed outline-none transition-[background-color,box-shadow] focus:bg-white/80 focus:ring-2 focus:ring-apple-blue/30 scroll-thin"
           />
         </div>
 
@@ -383,7 +383,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
           </div>
           <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto scroll-thin">
             {subtasks.map((s) => (
-              <li key={s.id} className="group flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-black/[0.03]">
+              <li key={s.id} className="group flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-black/[0.03]">
                 <button
                   onClick={() => updateSubtasks(subtasks.map((x) => (x.id === s.id ? { ...x, done: !x.done } : x)))}
                   className={cn(

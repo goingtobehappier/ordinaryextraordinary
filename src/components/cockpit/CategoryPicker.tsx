@@ -84,7 +84,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
         }}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKeyDown}
-        className="flex h-9 w-full items-center gap-1.5 rounded-lg border border-black/5 bg-white/60 pl-2 pr-1.5 text-sm outline-none transition-[box-shadow,background-color] focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
+        className="flex h-9 w-full items-center gap-1.5 rounded-md border border-black/5 bg-white/60 pl-2 pr-1.5 text-sm outline-none transition-[box-shadow,background-color] focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40"
       >
         {shown ? (
           <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-semibold", styleOf(shown).badge)}>{shown}</span>
@@ -99,7 +99,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 top-11 z-40 w-52 rounded-xl border border-white/40 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl"
+          className="absolute left-0 top-11 z-40 w-52 rounded-lg border border-white/40 bg-white/90 p-1.5 shadow-2xl backdrop-blur-xl"
         >
           <li className="px-2 pb-1 pt-0.5 text-[11px] text-ink-2">1차 태그 · 숫자키 선택 · Enter = {value ?? DEFAULT_CATEGORY}</li>
           {CATEGORIES.map((c, i) => (
@@ -114,7 +114,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
               }}
               onMouseEnter={() => setActive(i)}
               className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm",
+                "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm",
                 i === active ? "bg-apple-blue/10" : c === value && "bg-black/[0.04]",
               )}
             >
@@ -131,7 +131,7 @@ export const CategoryPicker = forwardRef<HTMLButtonElement, Props>(function Cate
               setOpen(false);
               openEditor(true);
             }}
-            className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border-t border-black/5 px-2 pb-1 pt-2 text-xs text-ink-2 hover:bg-black/[0.04] hover:text-ink"
+            className="mt-1 flex cursor-pointer items-center gap-2 rounded-md border-t border-black/5 px-2 pb-1 pt-2 text-xs text-ink-2 hover:bg-black/[0.04] hover:text-ink"
           >
             <Settings2 className="size-3.5" />
             태그 이름 편집

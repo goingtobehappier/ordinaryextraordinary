@@ -73,7 +73,7 @@ export function DateRangeBar({ range, onChange }: { range: DateRange; onChange: 
     );
 
   const picker = (
-      <div className="flex items-center gap-1.5 rounded-lg border border-black/5 bg-white/60 px-2.5 py-1 text-sm">
+      <div className="flex items-center gap-1.5 rounded-md border border-black/5 bg-white/60 px-2.5 py-1 text-sm">
         <CalendarRange className="size-4 text-ink-2" />
         <input
           type="date"
@@ -96,7 +96,7 @@ export function DateRangeBar({ range, onChange }: { range: DateRange; onChange: 
   );
 
   const quick = (
-      <div className="flex flex-wrap rounded-lg bg-black/5 p-0.5" role="group" aria-label="기간 빠른 선택">
+      <div className="flex flex-wrap rounded-md bg-black/5 p-0.5" role="group" aria-label="기간 빠른 선택">
         {list.map((p) => (
           <button key={p.label} onClick={() => onChange(p.range)} className={btn(active === p.label)}>
             {p.label}

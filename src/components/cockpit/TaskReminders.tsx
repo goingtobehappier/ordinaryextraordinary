@@ -264,7 +264,7 @@ export function TaskReminders({ userId }: { userId: string }) {
             key={r.key}
             role="status"
             className={cn(
-              "pointer-events-auto relative flex w-full max-w-[380px] overflow-hidden rounded-2xl border border-white/50 bg-white/85 shadow-[0_12px_40px_-8px_rgb(0_0_0/0.25)] backdrop-blur-xl sm:w-[360px]",
+              "pointer-events-auto relative flex w-full max-w-[380px] overflow-hidden rounded-lg border border-white/50 bg-white/85 shadow-[0_12px_40px_-8px_rgb(0_0_0/0.25)] backdrop-blur-xl sm:w-[360px]",
               r.leaving
                 ? "animate-[reminder-out_260ms_cubic-bezier(0.4,0,1,1)_both]"
                 : "animate-[reminder-in_420ms_cubic-bezier(0.32,0.72,0,1)_both]",
@@ -275,7 +275,7 @@ export function TaskReminders({ userId }: { userId: string }) {
               <div className="flex items-start gap-2.5">
                 <div
                   className={cn(
-                    "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
+                    "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md",
                     styleOf(todo.category).badge,
                   )}
                 >
@@ -312,7 +312,7 @@ export function TaskReminders({ userId }: { userId: string }) {
                 <button
                   type="button"
                   onClick={() => dismiss(r.key)}
-                  className="rounded-lg px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-[background-color,color,transform] duration-150 hover:bg-black/5 hover:text-ink active:scale-[0.97]"
+                  className="rounded-md px-3 py-1.5 text-[13px] font-medium text-ink-2 transition-[background-color,color,transform] duration-150 hover:bg-black/5 hover:text-ink active:scale-[0.97]"
                 >
                   확인
                 </button>
@@ -322,7 +322,7 @@ export function TaskReminders({ userId }: { userId: string }) {
                     dismiss(r.key);
                     if (!isDoneOn(todo, r.date)) void toggleDone(todo, r.date);
                   }}
-                  className="inline-flex items-center gap-1 rounded-lg bg-apple-mint px-3 py-1.5 text-[13px] font-medium text-white shadow-sm shadow-apple-mint/30 transition-[background-color,transform] duration-150 hover:bg-[#00b0a8] active:scale-[0.97]"
+                  className="inline-flex items-center gap-1 rounded-md bg-apple-mint px-3 py-1.5 text-[13px] font-medium text-white shadow-sm shadow-apple-mint/30 transition-[background-color,transform] duration-150 hover:bg-[#00b0a8] active:scale-[0.97]"
                 >
                   <Check className="size-3.5" />
                   완료

@@ -63,7 +63,7 @@ export function ConfirmDeleteDialog({ todo, onClose }: { todo: Todo | null; onCl
         aria-modal="true"
         aria-labelledby="confirm-delete-title"
         aria-describedby="confirm-delete-desc"
-        className="w-[380px] max-w-[calc(100vw-32px)] rounded-2xl border border-white/40 bg-white/85 p-5 shadow-2xl backdrop-blur-2xl"
+        className="w-[380px] max-w-[calc(100vw-32px)] rounded-lg border border-white/40 bg-white/85 p-5 shadow-2xl backdrop-blur-2xl"
       >
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#ff3b30]/10">
@@ -73,7 +73,7 @@ export function ConfirmDeleteDialog({ todo, onClose }: { todo: Todo | null; onCl
             <h2 id="confirm-delete-title" className="text-[15px] font-semibold text-ink">
               과업을 삭제할까요?
             </h2>
-            <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2.5 py-2">
+            <div className="mt-2 flex items-center gap-1.5 rounded-md bg-black/[0.04] px-2.5 py-2">
               <CategoryBadge category={todo.category} />
               <span className="truncate text-sm font-medium text-ink">{todo.title}</span>
               {todo.start_time && (

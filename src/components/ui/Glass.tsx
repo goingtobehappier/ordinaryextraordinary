@@ -8,7 +8,7 @@ export function GlassPanel({ className, ...props }: ComponentProps<"section">) {
   return (
     <section
       className={cn(
-        "rounded-2xl border border-white/40 bg-white/70 drop-shadow-xl backdrop-blur-xl",
+        "rounded-lg border border-white/40 bg-white/70 drop-shadow-xl backdrop-blur-xl",
         className,
       )}
       {...props}
@@ -25,7 +25,7 @@ export function GlassButton({
     <button
       type="button"
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium",
+        "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium",
         "transition-[background-color,color,transform,box-shadow] duration-150 active:scale-[0.97]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-apple-blue/50",
         "disabled:pointer-events-none disabled:opacity-40",
@@ -44,7 +44,7 @@ export function GlassInput({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "h-9 rounded-lg border border-black/5 bg-white/60 px-3 text-sm text-ink placeholder:text-ink-2/70",
+        "h-9 rounded-md border border-black/5 bg-white/60 px-3 text-sm text-ink placeholder:text-ink-2/70",
         "outline-none transition-[box-shadow,background-color] focus:bg-white/90 focus:ring-2 focus:ring-apple-blue/40",
         className,
       )}

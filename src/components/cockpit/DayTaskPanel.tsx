@@ -66,7 +66,7 @@ export function DayTaskPanel({ className }: { className?: string }) {
   return (
     <GlassPanel className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden print:hidden", className)}>
       <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3 sm:px-5 sm:py-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-apple-blue/10">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-apple-blue/10">
           <ListChecks className="size-[18px] text-apple-blue" />
         </div>
         <div className="min-w-0 flex-1">

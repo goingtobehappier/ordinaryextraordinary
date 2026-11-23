@@ -64,10 +64,10 @@ export function ShortcutSettings() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcut-title"
-        className="max-h-[90dvh] w-[min(520px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-white/40 bg-white/80 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
+        className="max-h-[90dvh] w-[min(520px,calc(100vw-24px))] overflow-y-auto rounded-lg border border-white/40 bg-white/80 p-4 shadow-2xl backdrop-blur-2xl sm:p-6 scroll-thin"
       >
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-apple-blue/10">
+          <div className="flex size-9 items-center justify-center rounded-md bg-apple-blue/10">
             <Keyboard className="size-5 text-apple-blue" />
           </div>
           <div>
@@ -81,7 +81,7 @@ export function ShortcutSettings() {
           </GlassButton>
         </div>
 
-        <ul className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white/60">
+        <ul className="divide-y divide-black/5 overflow-hidden rounded-md border border-black/5 bg-white/60">
           {(Object.keys(SHORTCUT_META) as ShortcutAction[]).map((action) => {
             const isRec = recording === action;
             const isDefault = shortcuts[action] === DEFAULT_SHORTCUTS[action];
@@ -102,7 +102,7 @@ export function ShortcutSettings() {
                     setMessage(null);
                   }}
                   className={cn(
-                    "flex min-w-[132px] items-center justify-end gap-1 rounded-lg px-2 py-1 transition-colors",
+                    "flex min-w-[132px] items-center justify-end gap-1 rounded-md px-2 py-1 transition-colors",
                     isRec ? "bg-apple-blue/10 ring-2 ring-apple-blue/50" : "hover:bg-black/5",
                   )}
                 >

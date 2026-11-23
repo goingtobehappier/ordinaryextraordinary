@@ -389,7 +389,7 @@ export function TimeBlocks({
               className={cn(
                 // z-0: 업무 블록(z-10) 아래. 빈 구간이 없어 겹칠 수밖에 없을 때도 업무 블록 텍스트가 가려지지 않음
                 // pointer-events-auto: 호버 시 삭제 버튼·툴팁 표시 (상위 레이어는 pointer-events-none)
-                "group/lunch pointer-events-auto absolute inset-x-0 z-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-lg border border-dashed py-1.5 pl-2.5 pr-7 text-[11px] font-medium",
+                "group/lunch pointer-events-auto absolute inset-x-0 z-0 flex min-w-0 items-start gap-1.5 overflow-hidden whitespace-nowrap rounded-md border border-dashed py-1.5 pl-2.5 pr-7 text-[11px] font-medium",
                 "transition-[top,height] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
                 lunch.conflict ? "border-[#ff3b30]/40 text-[#c4271d] opacity-60" : "border-[#ff9500]/40 text-[#b86b00]",
               )}
@@ -445,7 +445,7 @@ export function TimeBlocks({
             {/* 드롭 미리보기 */}
             {dropAt !== null && (
               <div
-                className="absolute inset-x-0 z-20 rounded-lg border-2 border-dashed border-apple-blue/60 bg-apple-blue/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-apple-blue"
+                className="absolute inset-x-0 z-20 rounded-md border-2 border-dashed border-apple-blue/60 bg-apple-blue/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-apple-blue"
                 style={{ top: minToPx(dropAt), height: (DEFAULT_DURATION / 60) * HOUR_PX }}
               >
                 {clockLabel(dropAt)}–{clockLabel(dropAt + DEFAULT_DURATION)}
@@ -469,7 +469,7 @@ export function TimeBlocks({
                   onPointerCancel={() => setDrag(null)}
                   onKeyDown={(e) => onBlockKeyDown(e, b)}
                   className={cn(
-                    "group pointer-events-auto absolute touch-none overflow-hidden rounded-lg border-l-[3px] px-2.5 py-1 text-left outline-none",
+                    "group pointer-events-auto absolute touch-none overflow-hidden rounded-md border-l-[3px] px-2.5 py-1 text-left outline-none",
                     "transition-[box-shadow,background-color] duration-150 hover:shadow-md focus-visible:ring-2 focus-visible:ring-apple-blue/50",
                     active ? "z-30 cursor-grabbing shadow-lg" : "z-10 cursor-grab",
                     done ? "border-apple-mint bg-apple-mint/15 text-[#00857f]" : styleOf(b.todo.category).block,

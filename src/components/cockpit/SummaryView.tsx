@@ -329,7 +329,7 @@ export function SummaryView() {
                           onClick={() => openTask(todo)}
                           onKeyDown={(e) => e.key === "Enter" && openTask(todo)}
                           title="클릭하여 수정"
-                          className="-mx-2 cursor-pointer rounded-lg px-2 py-1 outline-none print:mx-0 print:px-0 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-apple-blue/40"
+                          className="-mx-2 cursor-pointer rounded-md px-2 py-1 outline-none print:mx-0 print:px-0 transition-colors hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-apple-blue/40"
                         >
                           <p className="text-[14px] leading-relaxed">
                             <span className={cn("font-semibold", done && "text-ink-2 line-through decoration-ink-2/50")}>
@@ -366,7 +366,7 @@ export function SummaryView() {
                     onKeyDown={(e) => e.key === "Enter" && setSelectedDate(d.date)}
                     data-print-avoid
                     title="클릭하면 우측 Daily Memopad에서 편집"
-                    className="-mx-2 mt-4 cursor-pointer rounded-lg px-2 py-1.5 outline-none print:mx-0 print:px-0 transition-colors hover:bg-white/70"
+                    className="-mx-2 mt-4 cursor-pointer rounded-md px-2 py-1.5 outline-none print:mx-0 print:px-0 transition-colors hover:bg-white/70"
                   >
                     <p className="flex items-center gap-1.5 text-[13px] font-semibold text-[#00857f]">
                       <NotebookPen className="size-3.5" />

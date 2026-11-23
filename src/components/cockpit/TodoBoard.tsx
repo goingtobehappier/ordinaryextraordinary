@@ -451,7 +451,7 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
       </div>
       <div
         className={cn(
-          "flex h-9 shrink-0 items-center gap-1 rounded-lg border border-black/5 bg-white/60 px-2 text-sm",
+          "flex h-9 shrink-0 items-center gap-1 rounded-md border border-black/5 bg-white/60 px-2 text-sm",
           timeError && "ring-2 ring-[#ff3b30]/50",
         )}
         title={timeError ? "종료 시간은 시작 시간 이후여야 합니다" : "시간 (선택)"}
@@ -502,7 +502,7 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
       <select
         value={repeat}
         onChange={(e) => setRepeat(e.target.value as Repeat)}
-        className="h-9 shrink-0 rounded-lg border border-black/5 bg-white/60 px-2 text-sm outline-none focus:ring-2 focus:ring-apple-blue/40"
+        className="h-9 shrink-0 rounded-md border border-black/5 bg-white/60 px-2 text-sm outline-none focus:ring-2 focus:ring-apple-blue/40"
         aria-label="반복 (선택)"
       >
         {(Object.keys(REPEAT_LABEL) as Repeat[]).map((r) => (
@@ -576,7 +576,7 @@ export function TodoList({
               }}
               title={compact ? "달력의 다른 날짜로 끌어다 놓을 수 있어요" : "타임블록이나 다른 날짜로 끌어다 놓을 수 있어요"}
               className={cn(
-                "group flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border py-2.5 pl-1 pr-2 outline-none sm:gap-2.5 sm:pl-1.5 sm:pr-3",
+                "group flex min-w-0 cursor-pointer items-center gap-2 rounded-md border py-2.5 pl-1 pr-2 outline-none sm:gap-2.5 sm:pl-1.5 sm:pr-3",
                 "transition-[background-color,border-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-apple-blue/40",
                 selected
                   ? "border-apple-blue/30 bg-apple-blue/[0.07] shadow-sm"
@@ -644,7 +644,7 @@ export function TodoList({
                 aria-label={`${t.title} 과업 삭제`}
                 title="과업 삭제 (Delete)"
                 className={cn(
-                  "-mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-2/60 outline-none",
+                  "-mr-1 flex size-7 shrink-0 items-center justify-center rounded-md text-ink-2/60 outline-none",
                   "opacity-0 transition-[opacity,background-color,color] duration-150 group-hover:opacity-100 group-focus-within:opacity-100",
                   // 터치 기기(hover 없음)에서는 항상 노출
                   "[@media(hover:none)]:opacity-100",
