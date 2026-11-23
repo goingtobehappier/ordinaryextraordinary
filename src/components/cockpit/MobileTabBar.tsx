@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Newspaper } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { BrandMark } from "@/components/ui/Brand";
 import { ASSISTANT_NAME, useAssistant, type MobileTab } from "@/store/assistant";
 import { AssistantChat } from "./AssistantChat";
+import { useRouter, usePathname } from "next/navigation";
 
 /** 하단 탭 바 높이(px, safe-area 제외) — 본문 하단 여백과 맞춤 */
 export const TAB_BAR_HEIGHT = 56;
 
 /**
- * 가상 키보드 감지: visualViewport가 레이아웃 뷰포트보다 크게 줄면 키보드가 열린 것으로 봄.
- * iOS는 키보드가 화면을 덮기만 하고 100dvh를 줄이지 않으므로, 보이는 영역의 높이·위치를 직접 사용.
+- 가상 키보드 감지: visualViewport가 레이아웃 뷰포트보다 크게 줄면 키보드가 열린 것으로 봄.
+- iOS는 키보드가 화면을 덮기만 하고 100dvh를 줄이지 않으므로, 보이는 영역의 높이·위치를 직접 사용.
  */
 function useVisualViewport() {
   const [vv, setVv] = useState<{ height: number; top: number; keyboard: boolean } | null>(null);
@@ -49,15 +50,18 @@ export function MobileManagerScreen({ active }: { active: boolean }) {
   );
 }
 
-const TABS: { id: MobileTab; label: string }[] = [
+const TABS: { id: MobileTab | "newsletter"; label: string; isRoute?: boolean; path?: string }[] = [
   { id: "manager", label: ASSISTANT_NAME },
   { id: "timeblock", label: "타임블록" },
+  { id: "newsletter", label: "뉴스레터", isRoute: true, path: "/newsletter" },
 ];
 
-/** 모바일(< md) 하단 2탭: O.E. Buddy / 타임블록. 키보드가 열려 있으면 숨겨 입력 영역을 확보 */
+/** 모바일(< md) 하단 3탭: O.E. Buddy / 타임블록 / 뉴스레터. 키보드가 열려 있으면 숨겨 입력 영역을 확보 */
 export function MobileTabBar() {
   const tab = useAssistant((s) => s.mobileTab);
   const setTab = useAssistant((s) => s.setMobileTab);
+  const router = useRouter();
+  const pathname = usePathname();
   const vv = useVisualViewport();
   if (vv?.keyboard) return null;
 
@@ -67,25 +71,43 @@ export function MobileTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden print:hidden"
       data-keep-selection
     >
-      <div role="tablist" className="grid grid-cols-2" style={{ height: TAB_BAR_HEIGHT }}>
+      <div role="tablist" className="grid grid-cols-3" style={{ height: TAB_BAR_HEIGHT }}>
         {TABS.map((t) => {
-          const selected = tab === t.id;
+          const selected = t.isRoute ? pathname?.startsWith(t.path || "") : tab === t.id;
           return (
             <button
               key={t.id}
               type="button"
               role="tab"
               aria-selected={selected}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                if (t.isRoute && t.path) {
+                  router.push(t.path);
+                } else {
+                  // 다른 탭을 누를 때 뉴스레터 페이지에 있었다면 메인으로 이동하거나 탭 상태 변경
+                  if (pathname?.startsWith("/newsletter")) {
+                    router.push("/");
+                  }
+                  setTab(t.id as MobileTab);
+                }
+              }}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#262626]/30",
                 selected ? "text-[#262626]" : "text-ink-2",
               )}
             >
               {t.id === "manager" ? (
-                // 캐릭터 아이콘: 선택 = 원색, 미선택 = 흐리게 (캐릭터 색을 가리지 않도록 바탕 박스 없음)
                 <span className="flex h-6 w-8 items-center justify-center">
                   <BrandMark className={cn("size-6 transition-[opacity,filter]", !selected && "opacity-45 grayscale")} />
+                </span>
+              ) : t.id === "timeblock" ? (
+                <span
+                  className={cn(
+                    "flex h-6 w-8 items-center justify-center rounded-md transition-colors",
+                    selected ? "bg-[#262626] text-white" : "text-ink-2",
+                  )}
+                >
+                  <CalendarClock className="size-4" />
                 </span>
               ) : (
                 <span
@@ -94,7 +116,7 @@ export function MobileTabBar() {
                     selected ? "bg-[#262626] text-white" : "text-ink-2",
                   )}
                 >
-                  <CalendarClock className="size-4" />
+                  <Newspaper className="size-4" />
                 </span>
               )}
               {t.label}
