@@ -1,8 +1,10 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+
+export const dynamic = 'force-dynamic';
 
 type NewsletterDetail = {
   id: string;
@@ -15,19 +17,20 @@ type NewsletterDetail = {
 };
 
 export default function NewsletterDetailPage() {
-  const params = useParams();
   const router = useRouter();
   const [item, setItem] = useState<NewsletterDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDetail = async () => {
-      if (!params?.id) return;
+      const id = window.location.pathname.split('/').pop();
+      if (!id) return;
+
       const supabase = createClient();
       const { data } = await supabase
         .from('newsletters')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
       if (data) setItem(data);
@@ -35,7 +38,7 @@ export default function NewsletterDetailPage() {
     };
 
     fetchDetail();
-  }, [params?.id]);
+  }, []);
 
   if (loading) return <div className="p-8 max-w-4xl mx-auto">불러오는 중...</div>;
   if (!item) return <div className="p-8 max-w-4xl mx-auto">뉴스레터를 찾을 수 없어.</div>;
