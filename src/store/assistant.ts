@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeTodo } from "@/lib/types";
 import { useCockpit } from "@/store/cockpit";
 
 /** O.E. Buddy 대화 상태 — PC(우측 패널 교체)와 모바일(O.E. Buddy 탭)이 같은 대화를 공유 */
@@ -14,13 +15,45 @@ export const DETAIL_RELOAD_EVENT = "cockpit:detail-reload";
 export type ChatMessage = { role: "user" | "assistant"; content: string; error?: boolean };
 export type MobileTab = "manager" | "timeblock";
 
+type ActionLog = { tool?: string; result?: { deletedIds?: unknown } };
+
 type AssistantResponse = {
   reply?: string;
+  actions?: ActionLog[];
   changed?: boolean;
   error?: string;
   stage?: string;
   toolErrors?: string[];
 };
+
+/** 서버가 실행한 도구 기록에서 삭제된 일정 id 모으기 */
+const deletedIdsOf = (actions: ActionLog[] | undefined) =>
+  new Set(
+    (actions ?? [])
+      .filter((a) => a.tool === "delete_todos" && Array.isArray(a.result?.deletedIds))
+      .flatMap((a) => (a.result!.deletedIds as unknown[]).filter((v): v is string => typeof v === "string")),
+  );
+
+/**
+ * AI 변경 반영: 보이는 범위·미완료 목록을 다시 불러오고(rev 증가 → 검색·요약도 갱신),
+ * 열려 있는 상세 화면은 삭제됐으면 닫고, 범위 밖(검색·요약에서 연) 일정이면 단건으로 다시 받아 유지한 뒤
+ * 세부 메모·하위 작업도 다시 불러오게 함.
+ */
+async function applyAssistantChanges(deleted: Set<string>) {
+  const cockpit = useCockpit.getState();
+  const selected = cockpit.selectedTodoId;
+  if (selected && deleted.has(selected)) cockpit.selectTodo(null);
+
+  await cockpit.resync();
+
+  const sel = useCockpit.getState().selectedTodoId;
+  if (sel && !useCockpit.getState().todos.some((t) => t.id === sel)) {
+    const { data } = await createClient().from("todos").select("*").eq("id", sel).maybeSingle();
+    if (data) useCockpit.getState().ensureTodo(normalizeTodo(data));
+    else useCockpit.getState().selectTodo(null);
+  }
+  window.dispatchEvent(new Event(DETAIL_RELOAD_EVENT));
+}
 
 export const QUICK_PROMPTS = [
   "오늘 일정 브리핑",
@@ -45,6 +78,7 @@ class AssistantError extends Error {
   constructor(
     message: string,
     readonly changed: boolean,
+    readonly actions?: ActionLog[],
   ) {
     super(message);
   }
@@ -89,7 +123,7 @@ async function askAssistant(messages: ChatMessage[]): Promise<AssistantResponse>
       body.error || res.statusText || "응답을 받지 못했습니다.",
       ...(body.toolErrors?.length ? ["", "DB 도구 오류:", ...body.toolErrors] : []),
     ];
-    throw new AssistantError(lines.join("\n"), body.changed === true);
+    throw new AssistantError(lines.join("\n"), body.changed === true, body.actions);
   }
   return body;
 }
@@ -132,25 +166,23 @@ export const useAssistant = create<AssistantState>()((set, get) => ({
     set({ messages: next, input: "", pending: true });
 
     let changed = false;
+    let actions: ActionLog[] | undefined;
     try {
       const res = await askAssistant(next);
       changed = res.changed === true;
+      actions = res.actions;
       set((s) => ({ messages: [...s.messages, { role: "assistant", content: res.reply?.trim() || "응답이 비어 있습니다." }] }));
     } catch (e) {
-      // 오류여도 도구가 일부 실행됐을 수 있음 (서버가 changed를 함께 돌려줌)
+      // 오류여도 도구가 일부 실행됐을 수 있음 (서버가 changed·actions를 함께 돌려줌)
       changed = e instanceof AssistantError && e.changed;
+      actions = e instanceof AssistantError ? e.actions : undefined;
       const message = e instanceof Error ? e.message : "응답을 받지 못했습니다.";
       set((s) => ({ messages: [...s.messages, { role: "assistant", content: message, error: true }] }));
     } finally {
       set({ pending: false });
     }
 
-    // 일정이 추가·수정·이월됨 → 보고 있는 범위·미완료 목록을 다시 불러오고, 열린 상세 화면의 세부 메모도 갱신
-    if (changed) {
-      void useCockpit
-        .getState()
-        .resync()
-        .finally(() => window.dispatchEvent(new Event(DETAIL_RELOAD_EVENT)));
-    }
+    // 생성·수정·이동·완료·메모·삭제 등 어떤 변경이든 → 캘린더·타임블록·미완료 목록·검색/요약·열린 상세 화면을 즉시 최신으로
+    if (changed) void applyAssistantChanges(deletedIdsOf(actions));
   },
 }));
