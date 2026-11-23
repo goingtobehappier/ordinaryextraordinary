@@ -1,6 +1,7 @@
 import type { FunctionDeclaration } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeLabels } from "@/lib/categories";
+import { resolveTodoTags } from "@/lib/tagInference";
 import { DEFAULT_CATEGORY, DEFAULT_TAG, type Repeat } from "@/lib/types";
 
 /** AI 매니저 도구 실행 결과 — Gemini functionResponse.response로 그대로 전달됨 */
@@ -116,7 +117,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: "create_todos",
     description:
-      "일정을 한 건 또는 여러 건 한 번에 등록한다. 날짜가 모호하면 오늘 기준으로 계산한 YYYY-MM-DD를 넣는다. category는 사용자 1차 태그 중 하나(모르면 생략).",
+      "일정을 한 건 또는 여러 건 한 번에 등록한다. 날짜가 모호하면 오늘 기준으로 계산한 YYYY-MM-DD를 넣는다. category(1차 태그)와 tags(2차 태그)는 사용자가 직접 말한 경우에만 넣고, 아니면 반드시 생략한다 — 생략하면 서버가 과거 같은·유사한 업무 이력의 태그를 자동 적용하고, 이력이 없으면 기본값('업무'/'기타업무')을 쓴다. 결과의 tagSource로 태그 근거(manual/exact/keyword/default)를 알 수 있다.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -130,11 +131,10 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
               date: { type: "string", description: "YYYY-MM-DD" },
               start_time: { type: "string", description: "HH:MM (24시간). 종일이면 생략" },
               end_time: { type: "string", description: "HH:MM (24시간)" },
-              category: { type: "string", description: "1차 태그 (예: 일정, 미팅, 보고, 마감, 회의, 업무)" },
-              tags: { type: "array", items: { type: "string" }, description: "2차 태그" },
+              category: { type: "string", description: "1차 태그 — 사용자가 명시했을 때만 (예: 일정, 미팅, 보고, 마감, 회의, 업무)" },
+              tags: { type: "array", items: { type: "string" }, description: "2차 태그 — 사용자가 명시했을 때만" },
               repeat: { type: "string", enum: REPEATS, description: "반복 (기본 none)" },
-              ai_tags: { type: "array", items: { type: "string" }, description: "업무 성격 키워드" },
-              used_tools: { type: "array", items: { type: "string" }, description: "사용할 도구·시스템" },
+              used_tools: { type: "array", items: { type: "string" }, description: "사용할 도구·시스템 (사용자가 말했을 때만)" },
             },
             required: ["title", "date"],
           },
@@ -178,7 +178,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: "update_retrospective",
     description:
-      "특정 일정의 '회고 메모'(retrospective_memo), 자동 추출 태그(ai_tags), 사용 도구(used_tools)를 저장한다. 사용자가 '회고 정리해줘', '사용 도구 기록해줘', '태그 달아줘'처럼 회고·도구·태그를 요청할 때만 사용한다. 일반 세부 메모 요청에는 쓰지 않는다(update_todo_detail_memo 사용). todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
+      "특정 일정의 '회고 메모'(retrospective_memo), 자동 추출 태그(ai_tags), 사용 도구(used_tools)를 저장한다. 사용자가 '회고 남겨줘', '회고 정리해줘', '사용 도구 기록해줘', '태그 달아줘'처럼 회고·도구·태그를 요청할 때만 사용한다. 일반 세부 메모 요청에는 쓰지 않는다(update_todo_detail_memo 사용). todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -233,19 +233,31 @@ async function createTodos(args: Record<string, unknown>, ctx: ToolContext): Pro
   const skipped: { index: number; reason: string }[] = [];
   const rows: Record<string, unknown>[] = [];
 
+  const tagSources: string[] = [];
+
+  // 1차·2차 태그: 사용자가 명시한 값은 유지, 아니면 과거 이력(전체 기간)에서 추론 → 없으면 기본값 (일반 추가 폼과 같은 규칙)
+  const resolved = await Promise.all(
+    input.map(async (raw) => {
+      const t = (raw ?? {}) as Record<string, unknown>;
+      const title = str(t.title).slice(0, 200);
+      if (!title) return null;
+      const manualCategory = categories.includes(str(t.category)) ? str(t.category) : null;
+      return resolveTodoTags(ctx.supabase, ctx.userId, title, { category: manualCategory, tags: tagList(t.tags) }, { categories });
+    }),
+  );
+
   input.forEach((raw, index) => {
     const t = (raw ?? {}) as Record<string, unknown>;
     const title = str(t.title).slice(0, 200);
     const date = isoDate(t.date);
-    if (!title || !date) {
+    const tagInfo = resolved[index];
+    if (!title || !date || !tagInfo) {
       skipped.push({ index, reason: "title 또는 date(YYYY-MM-DD)가 없습니다." });
       return;
     }
     const start_time = hhmm(t.start_time);
     let end_time = start_time ? hhmm(t.end_time) : null;
     if (start_time && end_time && end_time <= start_time) end_time = null;
-    const category = categories.includes(str(t.category)) ? str(t.category) : DEFAULT_CATEGORY;
-    const tags = tagList(t.tags);
     const repeat = REPEATS.includes(t.repeat as Repeat) ? (t.repeat as Repeat) : "none";
 
     // due_date·is_completed는 todos_sync_legacy 트리거(015)가 채움
@@ -255,19 +267,24 @@ async function createTodos(args: Record<string, unknown>, ctx: ToolContext): Pro
       date,
       start_time,
       end_time,
-      category,
-      tags: tags.length ? tags : [DEFAULT_TAG],
+      category: tagInfo.category || DEFAULT_CATEGORY,
+      tags: tagInfo.tags.length ? tagInfo.tags : [DEFAULT_TAG],
       repeat,
-      ai_tags: tagList(t.ai_tags),
       used_tools: tagList(t.used_tools),
     });
+    tagSources.push(tagInfo.source);
   });
 
   if (!rows.length) return { error: "등록 가능한 일정이 없습니다.", skipped };
   const { data, error } = await ctx.supabase.from("todos").insert(rows).select(TODO_COLUMNS);
   if (error) return { error: error.message, skipped };
   const created = (data ?? []) as TodoRow[];
-  return { created: created.length, todos: created.map(view), skipped };
+  return {
+    created: created.length,
+    // tagSource: manual(사용자 지정) · exact(같은 제목 이력) · keyword(유사 업무 이력) · default(이력 없음 → 기본값)
+    todos: created.map((row, i) => ({ ...view(row), tagSource: tagSources[i] })),
+    skipped,
+  };
 }
 
 async function carryOverTodos(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {

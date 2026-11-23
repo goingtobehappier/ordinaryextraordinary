@@ -8,6 +8,9 @@ import { DEFAULT_CATEGORY } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { GlassInput, GlassPanel } from "@/components/ui/Glass";
 import { TodoList } from "./TodoBoard";
+import { createClient } from "@/lib/supabase/client";
+import { resolveTodoTags } from "@/lib/tagInference";
+import { useCategories } from "@/store/categories";
 
 /**
  * 월간 보기 우측 상단: 달력에서 선택한 날짜의 과업 리스트 (타임블록 없음)
@@ -39,13 +42,21 @@ export function DayTaskPanel({ className }: { className?: string }) {
     const t = title.trim();
     if (!t || saving) return;
     setSaving(true);
+    // 간단 추가는 태그 입력이 없으므로 과거 이력(DB 전체 기간)에서 1차·2차 태그를 찾아 채움 — 없으면 기본값
+    const resolved = await resolveTodoTags(
+      createClient(),
+      useCockpit.getState().userId ?? "",
+      t,
+      { category: DEFAULT_CATEGORY, tags: [DEFAULT_TAG] },
+      { categories: useCategories.getState().labels },
+    );
     const created = await addTodo({
       title: t,
-      category: DEFAULT_CATEGORY,
+      category: resolved.category,
       date: selectedDate,
       start_time: null,
       end_time: null,
-      tags: [DEFAULT_TAG],
+      tags: resolved.tags,
       repeat: "none",
     });
     setSaving(false);

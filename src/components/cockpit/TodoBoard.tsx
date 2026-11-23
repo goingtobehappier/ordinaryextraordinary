@@ -30,7 +30,6 @@ import {
 import { startTodoDrag } from "@/lib/dnd";
 import {
   REPEAT_LABEL,
-  DEFAULT_CATEGORY,
   type Category,
   type Repeat,
   type Todo,
@@ -43,6 +42,8 @@ import { CategoryPicker } from "./CategoryPicker";
 import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
 import { useCategories } from "@/store/categories";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
+import { createClient } from "@/lib/supabase/client";
+import { resolveTodoTags } from "@/lib/tagInference";
 import { TimeBlocks } from "./TimeBlocks";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { ExternalEventStrip } from "./ExternalEvents";
@@ -352,14 +353,22 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
       return;
     }
     setSaving(true);
+    // 직접 고르지 않은 1차·2차 태그는 과거 이력(DB 전체 기간)에서 찾아 채움 — 없으면 기본값
+    const resolved = await resolveTodoTags(
+      createClient(),
+      useCockpit.getState().userId ?? "",
+      t,
+      { category, tags: finalTags ?? finalizeTags(tagChips, tagDraft) },
+      { categories: useCategories.getState().labels },
+    );
     const created = await addTodo({
       title: t,
-      category: category ?? DEFAULT_CATEGORY,
+      category: resolved.category,
       date: selectedDate,
       // 시간·반복은 선택 사항: 비우면 null / 반복 없음
       start_time: start || null,
       end_time: start ? end || null : null,
-      tags: finalTags ?? finalizeTags(tagChips, tagDraft),
+      tags: resolved.tags,
       repeat,
     });
     setSaving(false);
