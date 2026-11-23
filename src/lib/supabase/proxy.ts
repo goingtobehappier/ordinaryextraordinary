@@ -34,7 +34,10 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));
 
-  if (!user && !isPublic) {
+  // Bearer 토큰으로 호출하는 API(쿠키 없음)는 라우트가 직접 토큰을 검증하고 401을 돌려줌
+  const bearerApi = path.startsWith("/api/") && /^bearer\s+\S/i.test(request.headers.get("authorization") ?? "");
+
+  if (!user && !isPublic && !bearerApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
