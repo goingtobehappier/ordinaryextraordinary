@@ -195,7 +195,8 @@ type CockpitState = {
   loadAllTags: () => Promise<void>;
   addTodo: (input: NewTodoInput) => Promise<Todo | null>;
   updateTodo: (id: string, patch: TodoPatch) => Promise<void>;
-  moveTodoToDate: (todo: Todo, date: string) => Promise<void>;
+  /** extra: 날짜와 함께 바꿀 값 (예: 타임블록에 놓을 때 시작·종료 시각) */
+  moveTodoToDate: (todo: Todo, date: string, extra?: TodoPatch) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
   toggleDone: (todo: Todo, date: string) => Promise<void>;
   clearError: () => void;
@@ -442,8 +443,9 @@ export const useCockpit = create<CockpitState>()(
           .eq("user_id", userId)
           .eq("repeat", "none")
           .lt("date", todayISO())
-          .order("date", { ascending: true })
-          .limit(300);
+          // 최근 날짜부터 받아야 완료된 옛 기록에 밀려 최근 미완료가 잘리지 않음 (표시 순서는 recomputeOverdue가 정렬)
+          .order("date", { ascending: false })
+          .limit(1000);
         if (error) return;
         set((s) => ({ overdue: recomputeOverdue((data ?? []).map(normalizeTodo), s.todos) }));
       },
@@ -514,8 +516,11 @@ export const useCockpit = create<CockpitState>()(
         else set((s) => ({ rev: s.rev + 1 }));
       },
 
-      moveTodoToDate: async (todo, date) => {
-        if (todo.date === date) return;
+      moveTodoToDate: async (todo, date, extra) => {
+        if (todo.date === date) {
+          if (extra) await get().updateTodo(todo.id, extra);
+          return;
+        }
         if (todo.repeat !== "none") {
           set({ error: "반복 일정은 상세 패널에서 시작일·반복을 변경하세요." });
           return;
@@ -524,6 +529,7 @@ export const useCockpit = create<CockpitState>()(
         // 목록에 없던(이동 필요 목록에서 온) 항목도 화면에 보이도록 추가
         if (!get().todos.some((t) => t.id === todo.id)) set((s) => ({ todos: [...s.todos, todo] }));
         await get().updateTodo(todo.id, {
+          ...extra,
           date,
           completed_dates: wasDone ? [date] : [],
         });
@@ -552,6 +558,8 @@ export const useCockpit = create<CockpitState>()(
       },
 
       toggleDone: async (todo, date) => {
+        // 이동 필요 목록에서만 불러온(캐시 밖) 항목도 완료 후 상세 패널에서 계속 보이도록 추가
+        if (!get().todos.some((t) => t.id === todo.id)) set((s) => ({ todos: [...s.todos, todo] }));
         const completed_dates = isDoneOn(todo, date)
           ? todo.completed_dates.filter((d) => d !== date)
           : [...todo.completed_dates, date];

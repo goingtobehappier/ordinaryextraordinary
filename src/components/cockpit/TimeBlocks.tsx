@@ -221,13 +221,17 @@ export function TimeBlocks({
     setDropAt(null);
     if (!id) return;
     e.preventDefault();
-    const todo = useCockpit.getState().todos.find((t) => t.id === id);
+    const { todos: all, overdue, moveTodoToDate } = useCockpit.getState();
+    const todo = all.find((t) => t.id === id) ?? overdue.find((t) => t.id === id);
     if (!todo) return;
     // 이미 시간이 있으면 길이 유지, 새로 배치하면 기본 1시간
     const span = spanOf(todo);
     const dur = span ? span.e - span.s : DEFAULT_DURATION;
     const s = clamp(snap(minuteAt(e.clientY) - SNAP), DAY_START, DAY_END - dur);
-    commit(id, s, s + dur);
+    if (todo.repeat === "none" && todo.date !== date) {
+      // 오늘 목록에 함께 보이던 지난 미완료 항목: 시간 지정과 함께 이 날짜로 이동
+      void moveTodoToDate(todo, date, { start_time: minutesToTime(s), end_time: minutesToTime(s + dur) });
+    } else commit(id, s, s + dur);
     selectTodo(id);
   }
 

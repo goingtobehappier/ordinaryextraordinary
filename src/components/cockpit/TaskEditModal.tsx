@@ -10,7 +10,10 @@ import { DetailBody } from "./TaskDetailPanel";
  */
 export function TaskEditModal() {
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
-  const todo = useCockpit((s) => s.todos.find((t) => t.id === s.selectedTodoId));
+  // 오늘 목록의 지난 미완료 항목은 캐시(todos) 밖일 수 있어 이동 필요 목록도 함께 찾음
+  const todo = useCockpit(
+    (s) => s.todos.find((t) => t.id === s.selectedTodoId) ?? s.overdue.find((t) => t.id === s.selectedTodoId),
+  );
   const selectTodo = useCockpit((s) => s.selectTodo);
   const dialogRef = useRef<HTMLDivElement>(null);
 

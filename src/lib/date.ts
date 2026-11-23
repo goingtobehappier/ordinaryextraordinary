@@ -118,3 +118,23 @@ export function monthGrid(iso: string): string[] {
 export function isOverdue(todo: Pick<Todo, "date" | "repeat" | "completed_dates">, today = todayISO()): boolean {
   return todo.repeat === "none" && todo.date < today && !todo.completed_dates.includes(todo.date);
 }
+
+/**
+ * 완료 기록에 쓸 날짜. 반복 없는 일정은 항상 원래 날짜(todo.date)에 기록
+ * → 오늘 목록에 함께 보이는 지난 미완료 항목을 체크해도 원래 날짜의 완료로 남음
+ */
+export function occurrenceDate(todo: Pick<Todo, "date" | "repeat">, viewDate: string): string {
+  return todo.repeat === "none" ? todo.date : viewDate;
+}
+
+/** 오늘 목록에 함께 보이는 지난 미완료(이월) 항목인지: 보는 날짜가 오늘이고, 원래 날짜가 그 이전인 단일 일정 */
+export function isCarryOver(todo: Pick<Todo, "date" | "repeat">, viewDate: string, today = todayISO()): boolean {
+  return viewDate === today && todo.repeat === "none" && todo.date < viewDate;
+}
+
+/** 짧은 날짜 뱃지 표기: 같은 해 "11/22", 다른 해 "25/11/22" */
+export function shortMonthDay(iso: string, today = todayISO()): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const md = `${m}/${d}`;
+  return iso.slice(0, 4) === today.slice(0, 4) ? md : `${String(y).slice(2)}/${md}`;
+}

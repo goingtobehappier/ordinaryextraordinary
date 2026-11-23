@@ -7,7 +7,7 @@ import { loadTodoDetail, saveTodoDetail, toSubtasks, type Detail } from "@/lib/t
 import { DETAIL_REMOTE_EVENT, type RemoteDetail } from "@/hooks/useRealtimeSync";
 import { useCockpit } from "@/store/cockpit";
 import { useDebouncedCallback } from "@/hooks/useDebouncedCallback";
-import { formatLong, isDoneOn, shortTime } from "@/lib/date";
+import { formatLong, isCarryOver, isDoneOn, occurrenceDate, shortTime } from "@/lib/date";
 import { REPEAT_LABEL, type Repeat, type Subtask, type Todo } from "@/lib/types";
 import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
@@ -22,7 +22,10 @@ export function TaskDetailPanel() {
   const [shownId, setShownId] = useState(selectedTodoId);
   if (selectedTodoId && selectedTodoId !== shownId) setShownId(selectedTodoId);
 
-  const todo = useCockpit((s) => s.todos.find((t) => t.id === shownId));
+  // 오늘 목록의 지난 미완료 항목은 캐시(todos) 밖일 수 있어 이동 필요 목록도 함께 찾음
+  const todo = useCockpit(
+    (s) => s.todos.find((t) => t.id === shownId) ?? s.overdue.find((t) => t.id === shownId),
+  );
   if (!todo) return <div className="h-[300px]" />;
   return <DetailBody key={todo.id} todo={todo} />;
 }
@@ -38,6 +41,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
   const selectedDate = useCockpit((s) => s.selectedDate);
   const selectTodo = useCockpit((s) => s.selectTodo);
   const updateTodo = useCockpit((s) => s.updateTodo);
+  const moveTodoToDate = useCockpit((s) => s.moveTodoToDate);
   const deleteTodo = useCockpit((s) => s.deleteTodo);
   const toggleDone = useCockpit((s) => s.toggleDone);
   const closeCombo = useCockpit((s) => s.shortcuts.closeDetail);
@@ -210,10 +214,14 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
       input.value = shortTime(todo[field]);
       return;
     }
-    void updateTodo(todo.id, { [field]: v });
+    // 오늘 목록에 함께 보이던 지난 미완료 항목에 시간을 지정하면 오늘 날짜로 이동
+    if (v && isCarryOver(todo, selectedDate)) void moveTodoToDate(todo, selectedDate, { [field]: v });
+    else void updateTodo(todo.id, { [field]: v });
   }
 
-  const done = isDoneOn(todo, selectedDate);
+  // 단일 일정은 원래 날짜 기준으로 완료 표시·기록
+  const doneDate = occurrenceDate(todo, selectedDate);
+  const done = isDoneOn(todo, doneDate);
   const subDone = subtasks.filter((s) => s.done).length;
 
   return (
@@ -229,7 +237,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
       {/* 상단 바 */}
       <div className="flex min-w-0 items-center gap-2 border-b border-black/5 px-4 py-3 sm:gap-3 sm:px-6">
         <button
-          onClick={() => void toggleDone(todo, selectedDate)}
+          onClick={() => void toggleDone(todo, doneDate)}
           className={cn(
             "flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
             done ? "border-apple-mint bg-apple-mint" : "border-black/20 hover:border-apple-mint",

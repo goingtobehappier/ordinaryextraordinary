@@ -19,9 +19,12 @@ import { useAssistant } from "@/store/assistant";
 import {
   addDays,
   formatLong,
+  isCarryOver,
   isDoneOn,
   minutesToTime,
+  occurrenceDate,
   occursOn,
+  shortMonthDay,
   shortTime,
   timeToMinutes,
   todayISO,
@@ -107,16 +110,26 @@ export function TodoBoard() {
   const activeTags = isMobile ? [] : storedActiveTags.filter((t) => visibleTags.includes(t));
   const activeCategories = useActiveCategoryFilter(storedActiveCategories);
 
-  const q = query.trim().toLowerCase().replace(/^#/, "");
-  const visible = dayTodos.filter(
-    (t) =>
-      (activeCategories.length === 0 || activeCategories.includes(t.category)) &&
-      (activeTags.length === 0 || activeTags.some((tag) => t.tags.includes(tag))) &&
-      (!q ||
-        t.title.toLowerCase().includes(q) ||
-        t.category.includes(q) ||
-        t.tags.some((tag) => tag.toLowerCase().includes(q))),
+  // 오늘을 볼 때만: 지난 날짜의 미완료 단일 일정을 원래 날짜 그대로 목록에 함께 표시 (타임블록에는 올리지 않음)
+  const overdue = useCockpit((s) => s.overdue);
+  const isTodayView = selectedDate === todayISO();
+  const carryOver = useMemo(
+    () => (isTodayView ? overdue.filter((t) => isCarryOver(t, selectedDate)) : []),
+    [isTodayView, overdue, selectedDate],
   );
+
+  const q = query.trim().toLowerCase().replace(/^#/, "");
+  const matches = (t: Todo) =>
+    (activeCategories.length === 0 || activeCategories.includes(t.category)) &&
+    (activeTags.length === 0 || activeTags.some((tag) => t.tags.includes(tag))) &&
+    (!q ||
+      t.title.toLowerCase().includes(q) ||
+      t.category.includes(q) ||
+      t.tags.some((tag) => tag.toLowerCase().includes(q)));
+  const visibleCarry = carryOver.filter(matches);
+  const visible = dayTodos.filter(matches);
+  // 목록(시간 미지정 영역 포함)에만 이월 항목을 뒤에 붙임. 타임블록에는 visible만 전달
+  const listTodos = visibleCarry.length ? [...visible, ...visibleCarry] : visible;
 
   const doneCount = dayTodos.filter((t) => isDoneOn(t, selectedDate)).length;
   const noFilter = activeTags.length === 0 && activeCategories.length === 0;
@@ -163,6 +176,7 @@ export function TodoBoard() {
           </h2>
           <p className="truncate text-xs text-ink-2">
             {dayTodos.length}개 중 {doneCount}개 완료
+            {carryOver.length > 0 && <> · 지난 미완료 {carryOver.length}</>}
             {loading && <Loader2 className="ml-1.5 inline size-3 animate-spin" />}
           </p>
         </div>
@@ -226,7 +240,7 @@ export function TodoBoard() {
       {isMobile ? (
         // 모바일: 시간 미지정 할 일(상단, 콤팩트) + 타임블록(나머지 전체)
         <div className="flex min-h-0 flex-1 flex-col">
-          <UntimedStrip todos={visible.filter((t) => !t.start_time)} date={selectedDate} />
+          <UntimedStrip todos={[...visible.filter((t) => !t.start_time), ...visibleCarry]} date={selectedDate} />
           <TimeBlocks
             todos={visible}
             occupied={dayTodos}
@@ -239,7 +253,7 @@ export function TodoBoard() {
       ) : (
         // 태블릿 이상: 목록 · 타임블록 좌우
         <div className="grid min-h-0 flex-1 grid-rows-1 md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
-          <TodoList todos={visible} date={selectedDate} emptyFiltered={dayTodos.length > 0} />
+          <TodoList todos={listTodos} date={selectedDate} emptyFiltered={dayTodos.length + carryOver.length > 0} />
           <TimeBlocks
             todos={visible}
             occupied={dayTodos}
@@ -249,6 +263,18 @@ export function TodoBoard() {
         </div>
       )}
     </GlassPanel>
+  );
+}
+
+/** 오늘 목록에 함께 보이는 지난 미완료 항목의 원래 예정일 뱃지 (예: 11/22) */
+function CarryOverBadge({ date }: { date: string }) {
+  return (
+    <span
+      title={`${formatLong(date)}에 예정된 미완료 일정`}
+      className="shrink-0 whitespace-nowrap rounded-md bg-[#ff9500]/10 px-1.5 py-px text-[10px] font-medium tabular-nums text-[#9a4a00]"
+    >
+      {shortMonthDay(date)}
+    </span>
   );
 }
 
@@ -270,12 +296,15 @@ function UntimedStrip({ todos, date }: { todos: Todo[]; date: string }) {
       </p>
       <ul className="scroll-thin max-h-[132px] space-y-0.5 overflow-y-auto">
         {todos.map((t) => {
-          const done = isDoneOn(t, date);
+          // 단일 일정은 원래 날짜에 완료 기록 (지난 미완료 항목도 원래 날짜의 완료로 남음)
+          const doneDate = occurrenceDate(t, date);
+          const done = isDoneOn(t, doneDate);
+          const carried = isCarryOver(t, date);
           return (
             <li key={t.id} className="flex min-h-10 items-center rounded-md active:bg-black/[0.04]">
               <button
                 type="button"
-                onClick={() => void toggleDone(t, date)}
+                onClick={() => void toggleDone(t, doneDate)}
                 aria-label={done ? `${t.title} 완료 취소` : `${t.title} 완료`}
                 aria-pressed={done}
                 className="flex size-10 shrink-0 items-center justify-center outline-none"
@@ -296,6 +325,7 @@ function UntimedStrip({ todos, date }: { todos: Todo[]; date: string }) {
               >
                 <span className={cn("size-1.5 shrink-0 rounded-full", styleOf(t.category).dot)} aria-hidden />
                 <span className={cn("min-w-0 flex-1 truncate text-sm", done && "text-ink-2 line-through")}>{t.title}</span>
+                {carried && <CarryOverBadge date={t.date} />}
                 <span className="shrink-0 text-[11px] text-ink-2">{t.category}</span>
               </button>
             </li>
@@ -553,7 +583,10 @@ export function TodoList({
     <>
     <ul className={cn("min-h-0 min-w-0 space-y-1.5 overflow-y-auto px-2 py-3 sm:px-4 scroll-thin", compact ? "px-2 sm:px-3" : "border-b border-black/5 md:border-b-0 md:border-r", className)}>
       {todos.map((t) => {
-        const done = isDoneOn(t, date);
+        // 단일 일정은 원래 날짜에 완료 기록 (지난 미완료 항목도 원래 날짜의 완료로 남음)
+        const doneDate = occurrenceDate(t, date);
+        const done = isDoneOn(t, doneDate);
+        const carried = isCarryOver(t, date);
         const selected = t.id === selectedTodoId;
         return (
           <li key={t.id}>
@@ -588,7 +621,7 @@ export function TodoList({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  void toggleDone(t, date);
+                  void toggleDone(t, doneDate);
                 }}
                 aria-label={done ? "완료 취소" : "완료"}
                 className={cn(
@@ -607,7 +640,16 @@ export function TodoList({
                   </span>
                 </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-ink-2">
-                  {t.start_time ? (
+                  {carried ? (
+                    // 지난 미완료: 원래 예정일 뱃지만 (과거 시각은 오늘 타임블록과 무관하므로 표시하지 않음)
+                    <>
+                      <CarryOverBadge date={t.date} />
+                      <span className="min-w-0 truncate">
+                        지난 미완료
+                        {!compact && <span className="hidden xl:inline"> · 타임블록으로 끌어다 놓으면 오늘로 이동</span>}
+                      </span>
+                    </>
+                  ) : t.start_time ? (
                     <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-medium tabular-nums text-ink">
                       <Clock className="size-3 shrink-0" />
                       {shortTime(t.start_time)}
