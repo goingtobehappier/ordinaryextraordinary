@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/newsletter", "/api/newsletter/inbound"];
 
 /** 모든 요청에서 Supabase 세션을 갱신하고, 비로그인 사용자는 /login으로 보냅니다. */
 export async function updateSession(request: NextRequest) {
