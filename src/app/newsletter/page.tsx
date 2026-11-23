@@ -58,45 +58,47 @@ export default function NewsletterPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {newsletters.map((letter) => (
-            <div
-              key={letter.id}
-              onClick={() => router.push(`/newsletter/${letter.id}`)}
-              className={`cursor-pointer rounded-xl p-6 transition-all duration-300 border bg-white shadow-sm hover:shadow-md flex flex-col justify-between ${
-                letter.is_read
-                  ? 'opacity-50 grayscale bg-gray-50 border-gray-200'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              style={{
-                borderTop: `4px solid ${letter.brand_color || '#262626'}`,
-              }}
-            >
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <span
-                    className="text-xs font-bold px-2.5 py-1 rounded-full text-white"
-                    style={{ backgroundColor: letter.brand_color || '#262626' }}
-                  >
-                    {letter.sender_name}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(letter.received_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <h2 className="text-lg font-bold text-[#262626] mb-2 line-clamp-2">
-                  {letter.title}
-                </h2>
-                <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                  {letter.summary || 'AI 요약 준비 중...'}
-                </p>
-              </div>
+          {newsletters.map((letter) => {
+            const brandColor = letter.brand_color || '#ffffff';
+            // 배경색이 밝은지 어두운지에 따라 기본 글자색 조정 (원하면 커스텀 가능)
+            const isRead = letter.is_read;
 
-              <div className="pt-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
-                <span>{letter.is_read ? '✓ 읽음 완료' : '● 안 읽음'}</span>
-                <span className="font-medium text-gray-700">→ 읽어보기</span>
+            return (
+              <div
+                key={letter.id}
+                onClick={() => router.push(`/newsletter/${letter.id}`)}
+                className={`cursor-pointer rounded-xl p-6 transition-all duration-300 shadow-sm hover:shadow-md flex flex-col justify-between ${
+                  isRead ? 'opacity-50 grayscale' : 'hover:opacity-95'
+                }`}
+                style={{
+                  backgroundColor: brandColor,
+                  color: '#ffffff', // 전체 배경색이 들어가므로 기본 텍스트는 화이트톤으로 가독성 확보
+                }}
+              >
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-black/20 text-white backdrop-blur-sm">
+                      {letter.sender_name}
+                    </span>
+                    <span className="text-xs opacity-80">
+                      {new Date(letter.received_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-bold mb-2 line-clamp-2">
+                    {letter.title}
+                  </h2>
+                  <p className="text-sm opacity-90 line-clamp-3 mb-4">
+                    {letter.summary || 'AI 요약 준비 중...'}
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-white/20 flex justify-between items-center text-xs opacity-90">
+                  <span>{isRead ? '✓ 읽음 완료' : '● 안 읽음'}</span>
+                  <span className="font-medium">→ 읽어보기</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
