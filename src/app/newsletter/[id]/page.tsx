@@ -4,19 +4,9 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-type NewsletterDetail = {
-  id: string;
-  subject: string;
-  sender: string;
-  content_html?: string;
-  content_text?: string;
-  received_at?: string;
-  created_at?: string;
-};
-
 export default function NewsletterDetailPage() {
   const router = useRouter();
-  const [item, setItem] = useState<NewsletterDetail | null>(null);
+  const [item, setItem] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,6 +31,12 @@ export default function NewsletterDetailPage() {
   if (loading) return <div className="p-8 max-w-4xl mx-auto">불러오는 중...</div>;
   if (!item) return <div className="p-8 max-w-4xl mx-auto">뉴스레터를 찾을 수 없어.</div>;
 
+  const title = item.title || item.subject || '제목 없음';
+  const sender = item.sender_name || item.sender || '발행처 정보 없음';
+  const brandColor = item.brand_color || '#262626';
+  const htmlBody = item.content_html || item.html_content || item.html;
+  const textBody = item.content || item.body || item.content_text || item.summary || '본문 내용이 없어.';
+
   return (
     <div className="p-8 max-w-4xl mx-auto bg-white min-h-screen">
       <button
@@ -49,18 +45,28 @@ export default function NewsletterDetailPage() {
       >
         ← 목록으로 돌아가기
       </button>
-      <h1 className="text-2xl font-bold mb-2 text-[#262626]">{item.subject}</h1>
-      <div className="text-sm text-gray-500 mb-8 pb-4 border-b">
-        보낸 사람: {item.sender}
+
+      <div className="mb-3">
+        <span
+          className="inline-block px-2.5 py-1 text-xs font-semibold text-white rounded"
+          style={{ backgroundColor: brandColor }}
+        >
+          {sender}
+        </span>
       </div>
-      {item.content_html ? (
+
+      <h1 className="text-2xl font-bold mb-6 pb-4 border-b text-[#262626]">
+        {title}
+      </h1>
+
+      {htmlBody ? (
         <div
           className="prose max-w-none"
-          dangerouslySetInnerHTML={{ __html: item.content_html }}
+          dangerouslySetInnerHTML={{ __html: htmlBody }}
         />
       ) : (
         <div className="whitespace-pre-wrap leading-relaxed text-[#262626]">
-          {item.content_text}
+          {textBody}
         </div>
       )}
     </div>
