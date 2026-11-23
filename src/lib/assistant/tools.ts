@@ -160,9 +160,25 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
     },
   },
   {
+    name: "update_todo_detail_memo",
+    description:
+      "일정 상세 화면의 '세부 메모'(todo_details.memo)에 내용을 작성한다. 사용자가 '세부 메모에 ~ 적어줘', '메모 남겨줘', '메모에 추가해줘'처럼 일반 메모를 요청할 때만 사용한다. 회고·사용 도구 기록에는 쓰지 않는다. 기본은 기존 메모 아래 줄바꿈 후 이어 붙이기(append), '덮어써줘/바꿔줘'면 replace. todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        todoId: { type: "string", description: "일정 id" },
+        date: { type: "string", description: "일정 날짜 YYYY-MM-DD (todoId가 없을 때)" },
+        titleQuery: { type: "string", description: "제목 일부 (todoId가 없을 때)" },
+        memo: { type: "string", description: "세부 메모에 쓸 내용 (사용자가 말한 내용을 그대로, 필요하면 짧게 정리)" },
+        mode: { type: "string", enum: ["append", "replace"], description: "append(기본): 기존 내용 뒤에 줄바꿈 후 추가 / replace: 덮어쓰기" },
+      },
+      required: ["memo"],
+    },
+  },
+  {
     name: "update_retrospective",
     description:
-      "특정 일정의 퇴근 회고 메모(retrospective_memo), 자동 추출 태그(ai_tags), 사용 도구(used_tools)를 저장한다. todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
+      "특정 일정의 '회고 메모'(retrospective_memo), 자동 추출 태그(ai_tags), 사용 도구(used_tools)를 저장한다. 사용자가 '회고 정리해줘', '사용 도구 기록해줘', '태그 달아줘'처럼 회고·도구·태그를 요청할 때만 사용한다. 일반 세부 메모 요청에는 쓰지 않는다(update_todo_detail_memo 사용). todoId를 모르면 date + titleQuery로 찾는다. 후보가 여러 개면 저장하지 않고 후보를 돌려준다.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -298,10 +314,9 @@ async function carryOverTodos(args: Record<string, unknown>, ctx: ToolContext): 
   };
 }
 
-async function updateRetrospective(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  let todo: TodoRow | null = null;
+/** todoId 또는 date + titleQuery로 일정 1건 찾기. 못 찾거나 후보가 여럿이면 모델에게 돌려줄 결과를 반환 */
+async function findTodo(args: Record<string, unknown>, ctx: ToolContext): Promise<{ todo: TodoRow } | { result: ToolResult }> {
   const todoId = str(args.todoId);
-
   if (todoId) {
     const { data, error } = await ctx.supabase
       .from("todos")
@@ -309,25 +324,70 @@ async function updateRetrospective(args: Record<string, unknown>, ctx: ToolConte
       .eq("user_id", ctx.userId)
       .eq("id", todoId)
       .maybeSingle();
-    if (error) return { error: error.message };
-    todo = data as TodoRow | null;
-    if (!todo) return { error: "해당 id의 일정을 찾지 못했습니다." };
-  } else {
-    const date = isoDate(args.date);
-    const titleQuery = safeTerm(args.titleQuery);
-    if (!date && !titleQuery) return { error: "todoId 또는 date/titleQuery가 필요합니다." };
-    let q = ctx.supabase.from("todos").select(TODO_COLUMNS).eq("user_id", ctx.userId);
-    if (date) q = q.eq("date", date);
-    if (titleQuery) q = q.ilike("title", `%${titleQuery}%`);
-    const { data, error } = await q.order("date", { ascending: false }).limit(10);
-    if (error) return { error: error.message };
-    const rows = (data ?? []) as TodoRow[];
-    if (!rows.length) return { error: "조건에 맞는 일정을 찾지 못했습니다." };
-    if (rows.length > 1) {
-      return { needsChoice: true, message: "후보가 여러 개입니다. 사용자에게 어떤 일정인지 확인하세요.", candidates: rows.map(view) };
-    }
-    todo = rows[0];
+    if (error) return { result: { error: error.message } };
+    if (!data) return { result: { error: "해당 id의 일정을 찾지 못했습니다." } };
+    return { todo: data as TodoRow };
   }
+
+  const date = isoDate(args.date);
+  const titleQuery = safeTerm(args.titleQuery);
+  if (!date && !titleQuery) return { result: { error: "todoId 또는 date/titleQuery가 필요합니다." } };
+  let q = ctx.supabase.from("todos").select(TODO_COLUMNS).eq("user_id", ctx.userId);
+  if (date) q = q.eq("date", date);
+  if (titleQuery) q = q.ilike("title", `%${titleQuery}%`);
+  const { data, error } = await q.order("date", { ascending: false }).limit(10);
+  if (error) return { result: { error: error.message } };
+  const rows = (data ?? []) as TodoRow[];
+  if (!rows.length) return { result: { error: "조건에 맞는 일정을 찾지 못했습니다." } };
+  if (rows.length > 1) {
+    return {
+      result: { needsChoice: true, message: "후보가 여러 개입니다. 사용자에게 어떤 일정인지 확인하세요.", candidates: rows.map(view) },
+    };
+  }
+  return { todo: rows[0] };
+}
+
+const MEMO_MAX = 10_000;
+
+/** 일정 상세의 '세부 메모'(todo_details.memo) 작성 — 이어 붙이기(기본) 또는 덮어쓰기. 하위 작업은 건드리지 않음 */
+async function updateTodoDetailMemo(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const found = await findTodo(args, ctx);
+  if ("result" in found) return found.result;
+  const { todo } = found;
+  if (typeof args.memo !== "string") return { error: "memo(작성할 내용)가 필요합니다." };
+  const text = args.memo.trim();
+  const replace = args.mode === "replace";
+
+  const { data: existing, error: readErr } = await ctx.supabase
+    .from("todo_details")
+    .select("memo")
+    .eq("todo_id", todo.id)
+    .limit(1);
+  if (readErr) return { error: `세부 메모 조회 실패: ${readErr.message}` };
+
+  const hasRow = !!existing?.length;
+  const before = ((existing?.[0] as { memo?: string | null } | undefined)?.memo ?? "").trimEnd();
+  const memo = (replace || !before ? text : `${before}\n${text}`).slice(0, MEMO_MAX);
+
+  // todo_id unique 제약 유무와 무관하게 동작하도록 update → 없으면 insert (subtasks는 기존 값·기본값 유지)
+  const { error } = hasRow
+    ? await ctx.supabase.from("todo_details").update({ memo }).eq("todo_id", todo.id)
+    : await ctx.supabase.from("todo_details").insert({ todo_id: todo.id, user_id: ctx.userId, memo });
+  if (error) return { error: `세부 메모 저장 실패: ${error.message}` };
+
+  return {
+    updated: true,
+    target: "세부 메모",
+    mode: replace ? "replace" : "append",
+    todo: { id: todo.id, title: todo.title, date: todo.date },
+    memo,
+  };
+}
+
+async function updateRetrospective(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const found = await findTodo(args, ctx);
+  if ("result" in found) return found.result;
+  const { todo } = found;
 
   const replace = args.tagMode === "replace";
   const patch: Record<string, unknown> = {};
@@ -350,7 +410,7 @@ async function updateRetrospective(args: Record<string, unknown>, ctx: ToolConte
     .select(TODO_COLUMNS)
     .single();
   if (error) return { error: error.message };
-  return { updated: true, todo: view(data as TodoRow) };
+  return { updated: true, target: "회고 메모", todo: view(data as TodoRow) };
 }
 
 const EXECUTORS: Record<string, (args: Record<string, unknown>, ctx: ToolContext) => Promise<ToolResult>> = {
@@ -358,10 +418,11 @@ const EXECUTORS: Record<string, (args: Record<string, unknown>, ctx: ToolContext
   create_todos: createTodos,
   carry_over_todos: carryOverTodos,
   update_retrospective: updateRetrospective,
+  update_todo_detail_memo: updateTodoDetailMemo,
 };
 
 /** 데이터를 바꾸는 도구 — 클라이언트가 목록을 다시 불러올지 판단하는 데 사용 */
-export const MUTATING_TOOLS = new Set(["create_todos", "carry_over_todos", "update_retrospective"]);
+export const MUTATING_TOOLS = new Set(["create_todos", "carry_over_todos", "update_retrospective", "update_todo_detail_memo"]);
 
 export async function runTool(name: string, args: Record<string, unknown> | undefined, ctx: ToolContext): Promise<ToolResult> {
   const exec = EXECUTORS[name];

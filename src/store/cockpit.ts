@@ -111,7 +111,20 @@ export type NewTodoInput = {
 };
 
 export type TodoPatch = Partial<
-  Pick<Todo, "title" | "category" | "date" | "start_time" | "end_time" | "tags" | "repeat" | "completed_dates">
+  Pick<
+    Todo,
+    | "title"
+    | "category"
+    | "date"
+    | "start_time"
+    | "end_time"
+    | "tags"
+    | "repeat"
+    | "completed_dates"
+    | "ai_tags"
+    | "used_tools"
+    | "retrospective_memo"
+  >
 >;
 
 type CockpitState = {

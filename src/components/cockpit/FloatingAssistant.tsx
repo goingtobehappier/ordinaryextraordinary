@@ -5,6 +5,7 @@ import { ArrowUp, Loader2, MessageSquareText, RotateCcw, X } from "lucide-react"
 import { cn } from "@/lib/cn";
 import { createClient } from "@/lib/supabase/client";
 import { useCockpit } from "@/store/cockpit";
+import { DETAIL_RELOAD_EVENT } from "./TaskDetailPanel";
 
 type ChatMessage = { role: "user" | "assistant"; content: string; error?: boolean };
 type AssistantResponse = {
@@ -146,7 +147,13 @@ export function FloatingAssistant() {
     }
 
     // 일정이 추가·수정·이월됨 → 보고 있는 범위와 미완료 목록을 다시 불러와 즉시 반영
-    if (changed) void useCockpit.getState().resync();
+    // (회고·도구·태그는 todo에 실려 오고, 세부 메모는 열려 있는 상세 화면이 따로 다시 불러옴)
+    if (changed) {
+      void useCockpit
+        .getState()
+        .resync()
+        .finally(() => window.dispatchEvent(new Event(DETAIL_RELOAD_EVENT)));
+    }
   };
 
   const onSubmit = (e: FormEvent) => {

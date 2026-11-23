@@ -14,6 +14,10 @@ import { cn } from "@/lib/cn";
 import { formatCombo } from "@/hooks/useHotkeys";
 import { GlassButton, GlassInput, GlassPanel, Kbd } from "@/components/ui/Glass";
 import { parseTags } from "./TodoBoard";
+import { SecondBrainSection } from "./SecondBrainSection";
+
+/** AI 매니저 등 외부에서 세부 메모·하위 작업을 바꿈 → 열려 있는 상세 화면이 서버에서 다시 불러옴 */
+export const DETAIL_RELOAD_EVENT = "cockpit:detail-reload";
 
 export function TaskDetailPanel() {
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
@@ -145,6 +149,29 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
     return () => window.removeEventListener(DETAIL_REMOTE_EVENT, onRemote);
   }, [loaded, todo.id, memoPending]);
 
+  // AI 매니저가 데이터를 바꿈 → 세부 메모·하위 작업을 조용히 다시 불러옴 (회고·도구·태그는 스토어 resync로 todo에 반영됨)
+  // 이 기기에서 저장 중·입력 대기 중이면 사용자의 입력을 덮어쓰지 않도록 건너뜀
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    const onReload = () => {
+      if (inflight.current || memoPending()) return;
+      void loadTodoDetail(createClient(), todo.id).then((res) => {
+        if (cancelled || !res.ok || inflight.current || memoPending()) return;
+        confirmed.current = res.data;
+        setMemo(res.data.memo);
+        setSubtasks(res.data.subtasks);
+      });
+    };
+    window.addEventListener(DETAIL_RELOAD_EVENT, onReload);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(DETAIL_RELOAD_EVENT, onReload);
+    };
+  }, [loaded, todo.id, memoPending]);
+
+  const [retroOpen, setRetroOpen] = useState(false);
+
   // 낙관적 업데이트: 화면에 먼저 반영하고 즉시 저장 (실패 시 persist에서 롤백)
   function updateSubtasks(next: Subtask[]) {
     if (!loaded) return;
@@ -201,7 +228,9 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
         // 모바일: 메모·하위 작업을 상하로 쌓으므로 더 높게
         variant === "modal"
           ? "h-[min(640px,88dvh)] w-[min(960px,calc(100vw-24px))] bg-white/90 shadow-2xl md:h-[min(520px,80vh)]"
-          : "h-[560px] md:h-[300px]",
+          : retroOpen
+            ? "h-[760px] md:h-[460px]"
+            : "h-[600px] md:h-[300px]",
       )}
     >
       {/* 상단 바 */}
@@ -269,7 +298,7 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
       {/* 모바일: 메모(상) · 하위 작업(하) / 태블릿 이상: 좌우 */}
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:grid-rows-1">
         {/* 메모 + 속성 */}
-        <div className="flex min-h-0 min-w-0 flex-col gap-3 border-b border-black/5 px-4 py-4 sm:px-6 md:border-b-0 md:border-r">
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto border-b border-black/5 px-4 py-4 scroll-thin sm:px-6 md:border-b-0 md:border-r">
           <div className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
             <select
               value={todo.category}
@@ -341,7 +370,15 @@ export function DetailBody({ todo, variant = "panel" }: { todo: Todo; variant?: 
             placeholder={
               loaded ? "세부 메모를 작성하세요…" : loadState === "error" ? "불러오지 못했습니다. 상단의 다시 시도를 눌러 주세요." : "불러오는 중…"
             }
-            className="min-h-0 flex-1 resize-none rounded-xl border border-black/5 bg-white/50 p-3 text-sm leading-relaxed outline-none transition-[background-color,box-shadow] focus:bg-white/80 focus:ring-2 focus:ring-apple-blue/30 scroll-thin"
+            className="min-h-20 flex-1 resize-none rounded-xl border border-black/5 bg-white/50 p-3 text-sm leading-relaxed outline-none transition-[background-color,box-shadow] focus:bg-white/80 focus:ring-2 focus:ring-apple-blue/30 scroll-thin"
+          />
+
+          {/* 세컨드 브레인: 회고 메모 · 사용 도구 · AI 태그 (세부 메모와 별도로 todos 행에 저장) */}
+          <SecondBrainSection
+            todo={todo}
+            open={retroOpen}
+            onOpenChange={setRetroOpen}
+            onPatch={(patch) => void updateTodo(todo.id, patch)}
           />
         </div>
 
