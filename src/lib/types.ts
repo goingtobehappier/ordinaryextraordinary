@@ -51,6 +51,10 @@ export type Todo = {
   completed_dates: string[];
   created_at: string;
   updated_at: string;
+  // 세컨드 브레인 (016_second_brain_columns)
+  ai_tags?: string[];
+  used_tools?: string[];
+  retrospective_memo?: string | null;
 };
 
 export const DEFAULT_TAG = "기타업무";
