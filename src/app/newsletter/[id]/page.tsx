@@ -4,8 +4,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export const dynamic = 'force-dynamic';
-
 type NewsletterDetail = {
   id: string;
   subject: string;
