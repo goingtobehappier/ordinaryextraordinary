@@ -46,12 +46,8 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.005em;
-  background:
-    radial-gradient(1200px 800px at 8% -10%, rgb(0 122 255 / 0.22), transparent 60%),
-    radial-gradient(1000px 700px at 100% 0%, rgb(0 199 190 / 0.2), transparent 60%),
-    radial-gradient(900px 700px at 60% 110%, rgb(175 82 222 / 0.12), transparent 60%),
-    #eef1f6;
-  background-attachment: fixed;
+  /* 단색 뉴트럴 배경 (색 번짐·그라데이션 없음) — 흰 패널과 차콜 텍스트가 바로 읽히도록 */
+  background: #f1f1f0;
   /* 한글이 음절 단위로 어색하게 끊기지 않도록 어절(띄어쓰기) 단위 줄바꿈.
      공백 없이 긴 문자열(URL 등)은 영역을 넘치지 않게 필요할 때만 강제 줄바꿈 */
   word-break: keep-all;

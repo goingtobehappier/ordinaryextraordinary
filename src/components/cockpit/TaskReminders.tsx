@@ -249,7 +249,8 @@ export function TaskReminders({ userId }: { userId: string }) {
       role="region"
       aria-label="과업 시간 알림"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:items-end print:hidden"
+      // 모바일: 하단 탭 바 위 / md 이상: 우측 하단 O.E. Manager 버튼(56px) 위
+      className="pointer-events-none fixed inset-x-3 bottom-[calc(68px+env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-5 sm:items-end md:bottom-[92px] print:hidden"
       data-keep-selection
     >
       {visible.map((r) => {

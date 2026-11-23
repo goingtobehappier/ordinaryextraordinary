@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  LayoutList,
   GripVertical,
   Loader2,
   Plus,
@@ -16,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DEFAULT_TAG, useCockpit } from "@/store/cockpit";
+import { useAssistant } from "@/store/assistant";
 import {
   addDays,
   formatLong,
@@ -40,7 +40,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { CategoryBadge, GlassButton, GlassInput, GlassPanel, Kbd, TagChip } from "@/components/ui/Glass";
 import { CategoryPicker } from "./CategoryPicker";
 import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
-import { useCategories } from "@/store/categories";
+import { useCategories, useCategoryStyle } from "@/store/categories";
 import { TagChipInput, finalizeTags } from "./TagChipInput";
 import { createClient } from "@/lib/supabase/client";
 import { resolveTodoTags } from "@/lib/tagInference";
@@ -85,9 +85,7 @@ export function TodoBoard() {
 
   const [prefillStart, setPrefillStart] = useState<{ start: string; nonce: number } | null>(null);
   const isMobile = useIsMobile();
-  /** 모바일: 타임블록은 기본 접힘, '타임블록 보기'를 눌러야 불러와 표시 */
-  const [blocksOpen, setBlocksOpen] = useState(false);
-  const showBlocks = !isMobile || blocksOpen;
+  const startDraft = useAssistant((s) => s.startDraft);
 
   const dayTodos = useMemo(
     () =>
@@ -124,12 +122,12 @@ export function TodoBoard() {
   const noFilter = activeTags.length === 0 && activeCategories.length === 0;
 
   return (
-    // 데스크톱: 남은 높이를 채움 / 태블릿: 고정 높이 / 모바일: 목록·타임블록을 상하로 쌓아 더 높게
-    // 모바일에서 타임블록이 접혀 있으면 목록만큼만 높이를 씀
+    // 데스크톱: 남은 높이를 채움 / 태블릿: 고정 높이
+    // 모바일(타임블록 탭): 입력 바 없이 화면 높이(하단 탭 제외)를 거의 다 타임블록에 씀
     <GlassPanel
       className={cn(
         "flex min-h-0 min-w-0 flex-col overflow-hidden md:h-[720px] lg:h-auto lg:flex-1",
-        showBlocks ? "h-[960px]" : "h-[560px]",
+        isMobile && "h-[calc(100dvh-96px-env(safe-area-inset-bottom))] min-h-[520px]",
       )}
     >
       {/* 헤더 + 태그 필터 */}
@@ -176,26 +174,6 @@ export function TodoBoard() {
           className={cn("flex-1", isMobile ? "min-w-[30px]" : "min-w-[80px]")}
         />
 
-        {/* 모바일 전용: 타임블록 보기/접기 */}
-        {isMobile && (
-          <button
-            type="button"
-            onClick={() => setBlocksOpen((o) => !o)}
-            aria-pressed={blocksOpen}
-            title={blocksOpen ? "타임블록 접기" : "타임블록 보기"}
-            className={cn(
-              "ml-auto flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition-[background-color,color,box-shadow] duration-150",
-              // 켜짐: 브랜드 강조색 / 꺼짐: 회색
-              blocksOpen
-                ? "bg-apple-blue text-white shadow-sm shadow-apple-blue/30 active:bg-apple-blue/85"
-                : "bg-black/[0.06] text-ink-2 active:bg-black/10",
-            )}
-          >
-            <LayoutList className="size-3.5" />
-            타임블록
-          </button>
-        )}
-
         {/* 모바일 일간: 1차 태그 필터만 아랫줄 전체 폭 + 가로 스크롤 (주간은 주간 바에 있음) */}
         {isMobile && view === "day" && (
           <CategoryFilterChips value={activeCategories} onToggle={toggleCategory} onClear={clearCategories} className="w-full" />
@@ -241,32 +219,90 @@ export function TodoBoard() {
         )}
       </div>
 
-      <AddTodoForm prefill={prefillStart} />
+      {/* 모바일은 입력 바 없음 — 일정 추가는 O.E. Manager 탭에서 (타임블록 빈 칸을 탭하면 시간이 채워진 채로 이동) */}
+      {!isMobile && <AddTodoForm prefill={prefillStart} />}
       <ExternalEventStrip date={selectedDate} />
 
-      {/* 모바일: 목록(상) · 타임블록(하, 펼쳤을 때만 마운트) / 태블릿 이상: 좌우 */}
-      <div
-        className={cn(
-          "grid min-h-0 flex-1 md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] md:grid-rows-1",
-          showBlocks ? "grid-rows-[minmax(0,1fr)_minmax(0,1.2fr)]" : "grid-rows-1",
-        )}
-      >
-        <TodoList
-          todos={visible}
-          date={selectedDate}
-          emptyFiltered={dayTodos.length > 0}
-          className={showBlocks ? undefined : "border-b-0"}
-        />
-        {showBlocks && (
+      {isMobile ? (
+        // 모바일: 시간 미지정 할 일(상단, 콤팩트) + 타임블록(나머지 전체)
+        <div className="flex min-h-0 flex-1 flex-col">
+          <UntimedStrip todos={visible.filter((t) => !t.start_time)} date={selectedDate} />
+          <TimeBlocks
+            todos={visible}
+            occupied={dayTodos}
+            date={selectedDate}
+            showCheck
+            className="flex-1"
+            onPickSlot={(start) => startDraft(`${formatLong(selectedDate)} ${start}에 `)}
+          />
+        </div>
+      ) : (
+        // 태블릿 이상: 목록 · 타임블록 좌우
+        <div className="grid min-h-0 flex-1 grid-rows-1 md:grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
+          <TodoList todos={visible} date={selectedDate} emptyFiltered={dayTodos.length > 0} />
           <TimeBlocks
             todos={visible}
             occupied={dayTodos}
             date={selectedDate}
             onPickSlot={(start) => setPrefillStart({ start, nonce: Date.now() })}
           />
-        )}
-      </div>
+        </div>
+      )}
     </GlassPanel>
+  );
+}
+
+// ───────────────────────────── 모바일: 시간 미지정 할 일 ─────────────────────────────
+/**
+ * 타임블록에 나타나지 않는(시간 없는) 할 일을 상단에 콤팩트하게.
+ * 왼쪽 체크 = 즉시 완료 토글 / 본문 탭 = 편집 창(제목·시간·태그·세부 메모)
+ */
+function UntimedStrip({ todos, date }: { todos: Todo[]; date: string }) {
+  const toggleDone = useCockpit((s) => s.toggleDone);
+  const selectTodo = useCockpit((s) => s.selectTodo);
+  const styleOf = useCategoryStyle();
+  if (!todos.length) return null;
+
+  return (
+    <section aria-label="시간 미지정 할 일" className="shrink-0 border-b border-black/5 px-3 pb-2 pt-2.5">
+      <p className="mb-1 px-1 text-[11px] font-medium text-ink-2">
+        시간 미지정 <span className="tabular-nums">{todos.length}</span>
+      </p>
+      <ul className="scroll-thin max-h-[132px] space-y-0.5 overflow-y-auto">
+        {todos.map((t) => {
+          const done = isDoneOn(t, date);
+          return (
+            <li key={t.id} className="flex min-h-10 items-center rounded-md active:bg-black/[0.04]">
+              <button
+                type="button"
+                onClick={() => void toggleDone(t, date)}
+                aria-label={done ? `${t.title} 완료 취소` : `${t.title} 완료`}
+                aria-pressed={done}
+                className="flex size-10 shrink-0 items-center justify-center outline-none"
+              >
+                <span
+                  className={cn(
+                    "flex size-[18px] items-center justify-center rounded-full border-[1.5px] transition-colors",
+                    done ? "border-apple-mint bg-apple-mint" : "border-black/25",
+                  )}
+                >
+                  <Check className={cn("size-3 text-white", !done && "opacity-0")} strokeWidth={3} />
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => selectTodo(t.id)}
+                className="flex min-h-10 min-w-0 flex-1 items-center gap-2 pr-2 text-left outline-none"
+              >
+                <span className={cn("size-1.5 shrink-0 rounded-full", styleOf(t.category).dot)} aria-hidden />
+                <span className={cn("min-w-0 flex-1 truncate text-sm", done && "text-ink-2 line-through")}>{t.title}</span>
+                <span className="shrink-0 text-[11px] text-ink-2">{t.category}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

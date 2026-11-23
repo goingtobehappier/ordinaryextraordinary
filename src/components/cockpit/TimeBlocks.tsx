@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, Trash2, Utensils } from "lucide-react";
+import { ArrowDown, Check, Trash2, Utensils } from "lucide-react";
 import { useCockpit } from "@/store/cockpit";
 import { useLunch } from "@/store/lunch";
 import { useAllDay, coversDate } from "@/store/allDay";
@@ -111,14 +111,20 @@ export function TimeBlocks({
   occupied = todos,
   date,
   onPickSlot,
+  showCheck = false,
+  className,
 }: {
   todos: Todo[];
   /** 점심시간 충돌 판단 기준 (필터와 무관한 그날의 전체 할 일) */
   occupied?: Todo[];
   date: string;
   onPickSlot: (start: string) => void;
+  /** 블록 왼쪽 완료 체크 (모바일: 목록 없이 타임블록만 보여줄 때) */
+  showCheck?: boolean;
+  className?: string;
 }) {
   const styleOf = useCategoryStyle();
+  const toggleDone = useCockpit((s) => s.toggleDone);
   const selectedTodoId = useCockpit((s) => s.selectedTodoId);
   const selectTodo = useCockpit((s) => s.selectTodo);
   const updateTodo = useCockpit((s) => s.updateTodo);
@@ -302,7 +308,7 @@ export function TimeBlocks({
   const hours = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => DAY_START / 60 + i);
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-col">
+    <div className={cn("flex min-h-0 min-w-0 flex-col", className)}>
       <div className="flex items-center justify-between gap-2 px-4 pb-1 pt-3 text-xs text-ink-2 sm:px-5">
         <span className="min-w-0 truncate font-medium">
           타임블록<span className="hidden lg:inline"> · 목록에서 끌어다 놓기</span>
@@ -505,12 +511,35 @@ export function TimeBlocks({
                     </button>
                   )}
 
-                  <div className={cn("truncate pr-5 text-xs font-semibold", done && "line-through")}>
+                  {/* 완료 체크: 탭하면 즉시 토글 (드래그·편집 열기와 분리) */}
+                  {showCheck && (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void toggleDone(b.todo, date);
+                      }}
+                      aria-label={done ? `${b.todo.title} 완료 취소` : `${b.todo.title} 완료`}
+                      aria-pressed={done}
+                      className="absolute left-0 top-0 z-10 flex h-full max-h-9 w-8 items-start justify-center pt-1.5 outline-none"
+                    >
+                      <span
+                        className={cn(
+                          "flex size-4 items-center justify-center rounded-full border-[1.5px] bg-white/70",
+                          done ? "border-apple-mint bg-apple-mint" : "border-current opacity-70",
+                        )}
+                      >
+                        <Check className={cn("size-3 text-white", !done && "opacity-0")} strokeWidth={3} />
+                      </span>
+                    </button>
+                  )}
+                  <div className={cn("truncate pr-5 text-xs font-semibold", showCheck && "pl-5", done && "line-through")}>
                     <span className="mr-1 opacity-70">[{b.todo.category}]</span>
                     {b.todo.title}
                   </div>
                   {height > 34 && (
-                    <div className="truncate text-[11px] tabular-nums opacity-80">
+                    <div className={cn("truncate text-[11px] tabular-nums opacity-80", showCheck && "pl-5")}>
                       {clockLabel(b.s)}–{clockLabel(b.e)}
                       {active && ` · ${b.e - b.s}분`}
                     </div>

@@ -7,7 +7,11 @@ import { createClient } from "@/lib/supabase/client";
 import { isFullView, useCockpit, type ShortcutAction } from "@/store/cockpit";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { isMobileNow } from "@/hooks/useIsMobile";
+import { isMobileNow, useIsMobile } from "@/hooks/useIsMobile";
+import { cn } from "@/lib/cn";
+import { useAssistant } from "@/store/assistant";
+import { AssistantChat } from "./AssistantChat";
+import { MobileManagerScreen, MobileTabBar } from "./MobileTabBar";
 import { addDays, monthGrid, startOfWeek, todayISO } from "@/lib/date";
 import type { CockpitUser } from "@/lib/types";
 import { GlassPanel } from "@/components/ui/Glass";
@@ -161,6 +165,11 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   const loadAllDay = useAllDay((s) => s.load);
   const loadCategories = useCategories((s) => s.load);
   const categoryEditorOpen = useCategories((s) => s.editorOpen);
+  const isMobile = useIsMobile();
+  const mobileTab = useAssistant((s) => s.mobileTab);
+  // PC·태블릿: 우측 메모 패널 ↔ O.E. Manager 교체 / 모바일: 하단 탭으로 전환
+  const assistantOpen = useAssistant((s) => s.open) && !isMobile;
+  const managerActive = isMobile && mobileTab === "manager";
 
   // 모바일(앱) 접속 시 기본 보기는 일간 — 좁은 화면에서 한 날짜에 집중 (접속 후 보기 전환은 자유)
   useEffect(() => {
@@ -231,10 +240,25 @@ function CockpitApp({ user }: { user: CockpitUser }) {
   // 다른 기기(PC ↔ 모바일)의 변경을 실시간 반영 (사용자당 1회 구독, 언마운트 시 해제)
   useRealtimeSync(user.id);
 
+  /** 우측 메모 패널 자리: PC에서 O.E. Manager를 열면 같은 위치·크기로 대화창과 교체 (메모는 숨기기만 해 입력 중 내용 보존) */
+  const memoSlot = (className?: string) => (
+    <div className={cn("flex min-h-0 min-w-0", className)}>
+      <DailyNote userId={user.id} className={cn("w-full flex-1", assistantOpen && "hidden")} />
+      {assistantOpen && <AssistantChat variant="panel" className="w-full flex-1" />}
+    </div>
+  );
+
   return (
-    // 데스크톱(lg+): 한 화면 고정 2열 / 태블릿·모바일: 상하 1열로 쌓고 페이지 스크롤
-    // 모바일·태블릿 하단 여백(pb-24): 페이지 끝 콘텐츠가 플로팅 AI 매니저 버튼에 가리지 않도록
-    <div className="flex min-h-dvh flex-col gap-3 p-3 pb-24 sm:gap-4 sm:p-4 sm:pb-24 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5 print:block print:h-auto print:min-h-0 print:p-0">
+    <>
+    {/* 데스크톱(lg+): 한 화면 고정 2열 / 태블릿·모바일: 상하 1열로 쌓고 페이지 스크롤
+        모바일: 하단 탭 바만큼, 태블릿: 우측 하단 O.E. Manager 버튼만큼 하단 여백
+        모바일 O.E. Manager 탭에서는 숨기기만 함(상태·스크롤 유지) */}
+    <div
+      className={cn(
+        "flex min-h-dvh flex-col gap-3 p-3 pb-[calc(72px+env(safe-area-inset-bottom))] sm:gap-4 sm:p-4 sm:pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-24 lg:h-dvh lg:min-h-[720px] lg:gap-5 lg:p-5 print:block print:h-auto print:min-h-0 print:p-0",
+        managerActive && "hidden",
+      )}
+    >
       <Header user={user} />
 
       <main className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] lg:gap-5 print:block">
@@ -249,17 +273,20 @@ function CockpitApp({ user }: { user: CockpitUser }) {
           ) : (
             <TodoBoard />
           )}
-          <div
-            className={`grid print:hidden transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-              selectedTodoId && !isFullView(view) ? "grid-rows-[1fr] opacity-100" : "-mt-3 grid-rows-[0fr] opacity-0 sm:-mt-4 lg:-mt-5"
-            }`}
-            aria-hidden={!selectedTodoId || isFullView(view)}
-            data-keep-selection
-          >
-            <div className="min-h-0 overflow-hidden">
-              <TaskDetailPanel />
+          {/* 하단 상세 패널: 모바일은 편집 모달로 대신함 */}
+          {!isMobile && (
+            <div
+              className={`grid print:hidden transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                selectedTodoId && !isFullView(view) ? "grid-rows-[1fr] opacity-100" : "-mt-3 grid-rows-[0fr] opacity-0 sm:-mt-4 lg:-mt-5"
+              }`}
+              aria-hidden={!selectedTodoId || isFullView(view)}
+              data-keep-selection
+            >
+              <div className="min-h-0 overflow-hidden">
+                <TaskDetailPanel />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {view === "month" ? (
@@ -267,24 +294,32 @@ function CockpitApp({ user }: { user: CockpitUser }) {
           // 모바일: 상하 / 태블릿: 좌우 2열 / 데스크톱: 우측 열 안에서 상하
           <div className="grid h-[900px] min-w-0 grid-rows-2 gap-3 sm:gap-4 md:h-[480px] md:grid-cols-2 md:grid-rows-1 lg:h-auto lg:min-h-0 lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5">
             <DayTaskPanel />
-            <DailyNote userId={user.id} />
+            {memoSlot()}
           </div>
         ) : (
-          <DailyNote userId={user.id} className="h-[520px] min-w-0 lg:h-auto" />
+          memoSlot("h-[520px] lg:h-auto")
         )}
       </main>
+    </div>
 
-      {isFullView(view) && selectedTodoId && <TaskEditModal />}
+      {/* 편집 모달: 검색·요약 뷰, 모바일(타임블록 탭에서 본문을 탭했을 때) */}
+      {(isFullView(view) || isMobile) && selectedTodoId && <TaskEditModal />}
       {shortcutsOpen && <ShortcutSettings />}
       {calendarOpen && <CalendarSyncModal />}
       {categoryEditorOpen && <CategoryEditor />}
       <TaskReminders userId={user.id} />
       <FloatingAssistant />
+      {isMobile && (
+        <>
+          <MobileManagerScreen active={managerActive} />
+          <MobileTabBar />
+        </>
+      )}
 
       {error && (
         <div
           role="alert"
-          className="fixed bottom-6 left-1/2 z-50 print:hidden flex w-max max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/40 bg-white/85 px-4 py-3 text-sm text-[#c4271d] shadow-xl backdrop-blur-xl"
+          className="fixed bottom-[calc(72px+env(safe-area-inset-bottom))] left-1/2 z-50 print:hidden flex w-max max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/40 bg-white/85 px-4 py-3 text-sm text-[#c4271d] shadow-xl backdrop-blur-xl md:bottom-6"
         >
           <CircleAlert className="size-4 shrink-0" />
           <span className="min-w-0 break-keep">{error}</span>
@@ -293,7 +328,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

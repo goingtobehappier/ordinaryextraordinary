@@ -12,8 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "any",
-    background_color: "#eef1f6",
-    theme_color: "#eef1f6",
+    background_color: "#f1f1f0",
+    theme_color: "#f1f1f0",
     categories: ["productivity", "business"],
     // 아이콘을 바꿀 때마다 ?v= 를 올려야 설치된 PWA(Android WebAPK)가 새 아이콘으로 인식함
     icons: [
