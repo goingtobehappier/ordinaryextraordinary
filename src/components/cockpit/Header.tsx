@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCalendar } from "@/store/calendar";
-import { CalendarDays, CalendarPlus, CalendarRange, Keyboard, List, ListTree, Loader2, LogOut } from "lucide-react";
+import { CalendarDays, CalendarPlus, CalendarRange, CircleHelp, Keyboard, List, ListTree, Loader2, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { removePushSubscription } from "@/lib/pushSubscription";
 import { useCockpit, type ViewMode } from "@/store/cockpit";
@@ -14,12 +14,14 @@ import type { CockpitUser } from "@/lib/types";
 import { GlassButton, GlassPanel, Kbd } from "@/components/ui/Glass";
 import { SearchBar } from "./SearchBar";
 import { BrandLockup } from "@/components/ui/Brand";
+import { useOnboarding } from "@/store/onboarding";
 
 export function Header({ user }: { user: CockpitUser }) {
   const setShortcutsOpen = useCockpit((s) => s.setShortcutsOpen);
   const openCombo = useCockpit((s) => s.shortcuts.openShortcuts);
   const goHome = useCockpit((s) => s.goHome);
   const setCalendarOpen = useCalendar((s) => s.setModalOpen);
+  const startTour = useOnboarding((s) => s.startTour);
   const [signingOut, setSigningOut] = useState(false);
   const router = useRouter();
 
@@ -95,6 +97,11 @@ export function Header({ user }: { user: CockpitUser }) {
             </div>
           </div>
 
+          {/* 튜토리얼 다시 보기 */}
+          <GlassButton onClick={startTour} title="튜토리얼 다시 보기" aria-label="튜토리얼 다시 보기" className="px-2">
+            <CircleHelp className="size-4 shrink-0" />
+          </GlassButton>
+
           <GlassButton onClick={signOut} disabled={signingOut} title="로그아웃" aria-label="로그아웃" className="px-2 xl:ml-1 xl:px-3">
             {signingOut ? <Loader2 className="size-4 shrink-0 animate-spin" /> : <LogOut className="size-4 shrink-0" />}
             <span className="hidden whitespace-nowrap xl:inline">로그아웃</span>
@@ -118,7 +125,7 @@ function ViewSwitcher() {
   const openSummary = useCockpit((s) => s.openSummary);
   const shortcuts = useCockpit((s) => s.shortcuts);
   return (
-    <div className="flex shrink-0 rounded-md bg-black/5 p-0.5" role="tablist" aria-label="보기 전환">
+    <div className="flex shrink-0 rounded-md bg-black/5 p-0.5" role="tablist" aria-label="보기 전환" data-tour="views">
       {VIEWS.map(({ id, label, icon: Icon, action }) => (
         <button
           key={id}

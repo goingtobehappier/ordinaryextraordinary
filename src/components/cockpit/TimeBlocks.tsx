@@ -315,7 +315,7 @@ export function TimeBlocks({
   const hours = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => DAY_START / 60 + i);
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-col", className)}>
+    <div data-tour="timeblock" className={cn("flex min-h-0 min-w-0 flex-col", className)}>
       <div className="flex items-center justify-between gap-2 px-4 pb-1 pt-3 text-xs text-ink-2 sm:px-5">
         <span className="min-w-0 truncate font-medium">
           타임블록<span className="hidden lg:inline"> · 목록에서 끌어다 놓기</span>

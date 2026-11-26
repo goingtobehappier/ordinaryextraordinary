@@ -22,6 +22,7 @@ import { SearchView } from "./SearchView";
 import { SummaryView } from "./SummaryView";
 import { TaskEditModal } from "./TaskEditModal";
 import { TodoBoard, NEW_TODO_INPUT_ID } from "./TodoBoard";
+import { OnboardingTour } from "./OnboardingTour";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { DailyNote, FOCUS_NOTE_EVENT } from "./DailyNote";
 import { DayTaskPanel } from "./DayTaskPanel";
@@ -244,7 +245,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
 
   /** 우측 메모 패널 자리: PC에서 O.E. Buddy를 열면 같은 위치·크기로 대화창과 교체 (메모는 숨기기만 해 입력 중 내용 보존) */
   const memoSlot = (className?: string) => (
-    <div className={cn("flex min-h-0 min-w-0", className)}>
+    <div data-tour="memo" className={cn("flex min-h-0 min-w-0", className)}>
       <DailyNote userId={user.id} className={cn("w-full flex-1", assistantOpen && "hidden")} />
       {assistantOpen && <AssistantChat variant="panel" className="w-full flex-1" />}
     </div>
@@ -311,6 +312,7 @@ function CockpitApp({ user }: { user: CockpitUser }) {
       {categoryEditorOpen && <CategoryEditor />}
       <TaskReminders userId={user.id} />
       <FloatingAssistant />
+      <OnboardingTour userId={user.id} />
       {isMobile && (
         <>
           <MobileManagerScreen active={managerActive} />

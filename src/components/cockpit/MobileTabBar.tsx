@@ -80,6 +80,7 @@ export function MobileTabBar() {
               type="button"
               role="tab"
               aria-selected={selected}
+              data-tour={t.id === "manager" ? "buddy-tab" : undefined}
               onClick={() => {
                 if (t.isRoute && t.path) {
                   router.push(t.path);

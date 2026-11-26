@@ -70,6 +70,7 @@ export function FloatingAssistant() {
     <div
       className={cn("oe-hop-wrap fixed bottom-[88px] right-11 z-40 hidden print:hidden", !open && "md:block")}
       data-keep-selection
+      data-tour="buddy"
     >
       {/* 발밑 타원 그림자: 점프 높이에 맞춰 작아지고 옅어졌다가 착지하면 다시 커짐 */}
       <span

@@ -466,6 +466,7 @@ function AddTodoForm({ prefill }: { prefill: { start: string; nonce: number } | 
         e.preventDefault();
         void submit();
       }}
+      data-tour="quick-add"
       // xl 미만: 제목 입력이 윗줄 전체, 시간·태그·반복·추가는 아랫줄에서 줄바꿈
       className="flex flex-wrap items-center gap-2 border-b border-black/5 px-4 py-3 sm:px-6 xl:flex-nowrap"
     >
