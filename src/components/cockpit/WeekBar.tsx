@@ -19,6 +19,8 @@ import { DEADLINE_SLOT, type Todo } from "@/lib/types";
 import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
 import { cn } from "@/lib/cn";
+import { getKoreanHoliday } from "@/lib/holidays";
+import { HolidayBadge } from "./HolidayBadge";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { ExternalEventRow, useExternalEventsByDate, useSourceColors } from "./ExternalEvents";
 import { allDayChipStyle } from "./AllDayBanner";
@@ -103,7 +105,8 @@ export function WeekBar() {
           const externalShown = external.slice(0, Math.max(0, rows - Math.min(timedItems.length, rows)));
           const selected = iso === selectedDate;
           const isToday = iso === today;
-          const weekend = i >= 5;
+          const holiday = getKoreanHoliday(iso);
+          const weekend = i >= 5 || holiday !== null;
           return (
             <button
               key={iso}
@@ -138,7 +141,15 @@ export function WeekBar() {
                 >
                   {WEEKDAY_KO[i]}
                 </span>
-                <span className="shrink-0 text-[17px] font-semibold leading-none tracking-[-0.02em] md:text-[20px]">{parseISODate(iso).getDate()}</span>
+                <span
+                  className={cn(
+                    "shrink-0 text-[17px] font-semibold leading-none tracking-[-0.02em] md:text-[20px]",
+                    !selected && holiday && "text-[#ff3b30]",
+                  )}
+                >
+                  {parseISODate(iso).getDate()}
+                </span>
+                {holiday && <HolidayBadge name={holiday} inverted={selected} className="hidden md:inline" />}
                 {isToday && (
                   <span
                     className={cn(

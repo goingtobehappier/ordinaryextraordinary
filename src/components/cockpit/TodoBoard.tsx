@@ -38,6 +38,8 @@ import {
   type Todo,
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { getKoreanHoliday } from "@/lib/holidays";
+import { HolidayBadge } from "./HolidayBadge";
 import { formatCombo } from "@/hooks/useHotkeys";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { CategoryBadge, GlassButton, GlassInput, GlassPanel, Kbd, TagChip } from "@/components/ui/Glass";
@@ -113,6 +115,7 @@ export function TodoBoard() {
   // 오늘을 볼 때만: 지난 날짜의 미완료 단일 일정을 원래 날짜 그대로 목록에 함께 표시 (타임블록에는 올리지 않음)
   const overdue = useCockpit((s) => s.overdue);
   const isTodayView = selectedDate === todayISO();
+  const holiday = getKoreanHoliday(selectedDate);
   const carryOver = useMemo(
     () => (isTodayView ? overdue.filter((t) => isCarryOver(t, selectedDate)) : []),
     [isTodayView, overdue, selectedDate],
@@ -172,6 +175,12 @@ export function TodoBoard() {
             {formatLong(selectedDate)}
             {selectedDate === todayISO() && (
               <span className={cn("font-medium text-apple-blue", isMobile ? "ml-1.5 text-xs" : "ml-2 text-sm")}>오늘</span>
+            )}
+            {holiday && (
+              <HolidayBadge
+                name={holiday}
+                className={cn("inline-block max-w-[10rem] align-middle", isMobile ? "ml-1.5" : "ml-2 px-1.5 text-[11px]")}
+              />
             )}
           </h2>
           <p className="truncate text-xs text-ink-2">

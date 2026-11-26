@@ -18,6 +18,8 @@ import { isTodoDrag, startTodoDrag } from "@/lib/dnd";
 import { DEADLINE_SLOT } from "@/lib/types";
 import { useCategoryLabels, useCategoryStyle } from "@/store/categories";
 import { cn } from "@/lib/cn";
+import { getKoreanHoliday } from "@/lib/holidays";
+import { HolidayBadge } from "./HolidayBadge";
 import { GlassButton, GlassPanel } from "@/components/ui/Glass";
 import { useDropToDate } from "./WeekBar";
 import { CategoryFilterChips, useActiveCategoryFilter } from "./CategoryFilterChips";
@@ -97,6 +99,7 @@ export function MonthView() {
             .sort((a, b) => (timeToMinutes(a.start_time) ?? 9999) - (timeToMinutes(b.start_time) ?? 9999));
           const inMonth = parseISODate(iso).getMonth() === month;
           const selected = iso === selectedDate;
+          const holiday = getKoreanHoliday(iso);
           const due = items.filter((t) => t.category === deadlineLabel && !isDoneOn(t, iso)).length;
           // 외부 일정은 할 일 다음 남는 칸에 표시, 넘치는 건수는 '더보기'에 합산
           // 태그 필터 중에는 태그가 없는 외부 캘린더 일정은 숨김
@@ -145,11 +148,13 @@ export function MonthView() {
                 <span
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-md text-[13px] font-semibold tabular-nums",
-                    iso === today ? "bg-apple-blue text-white" : i % 7 >= 5 ? "text-[#ff3b30]/80" : "text-ink",
+                    iso === today ? "bg-apple-blue text-white" : i % 7 >= 5 || holiday ? "text-[#ff3b30]/80" : "text-ink",
                   )}
                 >
                   {parseISODate(iso).getDate()}
                 </span>
+                {/* 공휴일 명칭: 모바일은 칸이 좁아 숫자 색으로만 표시 */}
+                {holiday && <HolidayBadge name={holiday} className="hidden sm:inline" />}
                 {due > 0 && (
                   <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#ff3b30] px-1 text-[10px] font-bold text-white">
                     <Flag className="size-2.5" />
