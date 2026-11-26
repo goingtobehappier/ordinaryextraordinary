@@ -1,4 +1,5 @@
 import type { Repeat, Todo } from "./types";
+import { isOffDay } from "./holidays";
 
 /** 로컬 타임존 기준 YYYY-MM-DD */
 export function toISODate(d: Date): string {
@@ -73,7 +74,9 @@ export function occursOn(todo: Pick<Todo, "date" | "repeat">, iso: string): bool
   const repeat: Repeat = todo.repeat;
   if (repeat === "none") return iso === todo.date;
   if (repeat === "daily") return true;
-  if (repeat === "weekdays") return weekdayIndex(iso) < 5;
+  // 평일 반복: 토·일요일과 공휴일·대체공휴일에는 발생하지 않음
+  // (사용자가 직접 고른 시작일은 휴무일이어도 그대로 표시)
+  if (repeat === "weekdays") return iso === todo.date || !isOffDay(iso);
   if (repeat === "weekly") return weekdayIndex(iso) === weekdayIndex(todo.date);
   // monthly: 같은 일자. 해당 월에 그 일자가 없으면 말일에 발생
   const base = parseISODate(todo.date).getDate();

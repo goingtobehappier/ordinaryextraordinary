@@ -6,6 +6,7 @@ import { useCockpit } from "@/store/cockpit";
 import { useLunch } from "@/store/lunch";
 import { useAllDay, coversDate } from "@/store/allDay";
 import { clockLabel, isDoneOn, minutesToTime, timeToMinutes, todayISO, weekdayIndex } from "@/lib/date";
+import { getKoreanHoliday } from "@/lib/holidays";
 import { isTodoDrag, readTodoDrag } from "@/lib/dnd";
 import { type Todo } from "@/lib/types";
 import { useCategoryStyle } from "@/store/categories";
@@ -132,9 +133,11 @@ export function TimeBlocks({
   const lunchSkipped = useLunch((s) => !!s.skipped[date]);
   const skipLunch = useLunch((s) => s.skip);
   const restoreLunch = useLunch((s) => s.restore);
-  // 자동 예외: 주말(토·일)이거나 종일 일정(연차·휴가 등)이 있는 날은 점심시간 블록을 만들지 않음
+  // 자동 예외: 주말(토·일)·공휴일(대체공휴일 포함)이거나 종일 일정(연차·휴가 등)이 있는 날은 점심시간 블록을 만들지 않음
   const hasAllDay = useAllDay((s) => s.events.some((e) => coversDate(e, date)));
-  const lunchAutoOff: "weekend" | "allDay" | null = weekdayIndex(date) >= 5 ? "weekend" : hasAllDay ? "allDay" : null;
+  const holiday = getKoreanHoliday(date);
+  const lunchAutoOff: "weekend" | "holiday" | "allDay" | null =
+    weekdayIndex(date) >= 5 ? "weekend" : holiday ? "holiday" : hasAllDay ? "allDay" : null;
   const lunchHidden = lunchSkipped || lunchAutoOff !== null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -320,7 +323,7 @@ export function TimeBlocks({
         <span className="flex shrink-0 items-center gap-2 whitespace-nowrap tabular-nums">
           <AlarmToggle />
           {/* 점심시간 토글: 켜짐 = 선명한 아이콘 / 당일 삭제 = 반투명 + 사선 */}
-          {/* 주말·종일 일정 날은 자동으로 꺼짐 (토글 비활성) */}
+          {/* 주말·공휴일·종일 일정 날은 자동으로 꺼짐 (토글 비활성) */}
           <button
             type="button"
             onClick={() => void toggleLunch(!lunchSkipped)}
@@ -329,7 +332,7 @@ export function TimeBlocks({
             aria-label={lunchSkipped ? "오늘 점심시간 복원" : "오늘 점심시간 삭제"}
             title={
               lunchAutoOff
-                ? `점심시간 자동 제외 · ${lunchAutoOff === "weekend" ? "주말" : "종일 일정이 있는 날"}`
+                ? `점심시간 자동 제외 · ${lunchAutoOff === "weekend" ? "주말" : lunchAutoOff === "holiday" ? `공휴일(${holiday})` : "종일 일정이 있는 날"}`
                 : lunchSkipped
                   ? `점심시간 꺼짐 · 클릭하면 복원 (${clockLabel(LUNCH.start)}–${clockLabel(LUNCH.end)})`
                   : "점심시간 켜짐 · 클릭하면 이 날짜만 삭제"
